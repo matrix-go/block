@@ -1,6 +1,8 @@
 package crypto
 
 import (
+	"crypto/rand"
+	"io"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,6 +13,21 @@ func TestGeneratePrivateKey(t *testing.T) {
 	privKey, err := GeneratePrivateKey()
 	require.NoError(t, err)
 	assert.Equal(t, kPrivateKeyLen, len(privKey.Bytes()))
+	pubKey := privKey.PublicKey()
+	assert.Equal(t, kPublicKeyLen, len(pubKey.Bytes()))
+}
+
+func TestNewPrivateKeyFromSeed(t *testing.T) {
+	seed := make([]byte, kSeedLen)
+	_, err := io.ReadFull(rand.Reader, seed)
+	require.NoError(t, err)
+
+	t.Logf("seed: %x", seed)
+
+	privKey, err := NewPrivateKeyFromSeed(seed)
+	require.NoError(t, err)
+	assert.Equal(t, kPrivateKeyLen, len(privKey.Bytes()))
+
 	pubKey := privKey.PublicKey()
 	assert.Equal(t, kPublicKeyLen, len(pubKey.Bytes()))
 }

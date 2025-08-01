@@ -1,8 +1,8 @@
 build:
-	@go build -o bin/block
+	@go build -p=1 -o bin/block
 
 run: build
 	@./bin/block
 	
 test:
-	@go test -v ./...
+	@go test -p=1 -v ./...

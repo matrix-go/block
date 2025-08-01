@@ -4,6 +4,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"io"
 )
 
@@ -14,8 +15,29 @@ const (
 	kAddressLen    = 20
 )
 
+var (
+	ErrInvalidSeedLength = errors.New("invalid seed length, must be 32 bytes")
+)
+
 type PrivateKey struct {
 	key ed25519.PrivateKey
+}
+
+func NewPrivateKeyFromString(seedStr string) (*PrivateKey, error) {
+	seed, err := hex.DecodeString(seedStr)
+	if err != nil {
+		return nil, err
+	}
+	return NewPrivateKeyFromSeed(seed)
+}
+
+func NewPrivateKeyFromSeed(seed []byte) (*PrivateKey, error) {
+	if len(seed) != kSeedLen {
+		return nil, ErrInvalidSeedLength
+	}
+	return &PrivateKey{
+		key: ed25519.NewKeyFromSeed(seed),
+	}, nil
 }
 
 func GeneratePrivateKey() (*PrivateKey, error) {
