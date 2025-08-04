@@ -35,6 +35,7 @@ func NewPrivateKeyFromSeed(seed []byte) (*PrivateKey, error) {
 	if len(seed) != kSeedLen {
 		return nil, ErrInvalidSeedLength
 	}
+	// privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	return &PrivateKey{
 		key: ed25519.NewKeyFromSeed(seed),
 	}, nil
@@ -69,29 +70,37 @@ func (k *PrivateKey) PublicKey() *PublicKey {
 	}
 }
 
-func (k *PublicKey) Address() Address {
-	return Address{
-		value: k.key[len(k.key)-kAddressLen:],
-	}
-}
-
 type PublicKey struct {
 	key ed25519.PublicKey
 }
 
-func (k *PublicKey) Bytes() []byte {
+func (k PublicKey) Bytes() []byte {
 	return k.key
+}
+
+func (k PublicKey) String() string {
+	return "0x" + hex.EncodeToString(k.key)
+}
+
+func (k PublicKey) Address() Address {
+	return Address{
+		value: k.key[len(k.key)-kAddressLen:],
+	}
 }
 
 type Signature struct {
 	value []byte
 }
 
-func (s *Signature) Bytes() []byte {
+func (s Signature) Bytes() []byte {
 	return s.value
 }
 
-func (s *Signature) Verify(pubKey *PublicKey, msg []byte) bool {
+func (s Signature) String() string {
+	return "0x" + hex.EncodeToString(s.value)
+}
+
+func (s Signature) Verify(pubKey *PublicKey, msg []byte) bool {
 	return ed25519.Verify(pubKey.key, msg, s.value)
 }
 
