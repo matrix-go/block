@@ -1,7 +1,6 @@
 package core
 
 import (
-	"bytes"
 	"crypto/sha256"
 
 	"github.com/matrix-go/block/types"
@@ -19,9 +18,7 @@ func NewBlockHasher() *BlockHasher {
 }
 
 func (h *BlockHasher) Hash(b *Block) types.Hash {
-	buf := &bytes.Buffer{}
-	_ = b.Header.EncodeBinary(buf)
-	return sha256.Sum256(buf.Bytes())
+	return sha256.Sum256(b.HeaderData())
 }
 
 var _ Hasher[*Block] = (*BlockHasher)(nil)

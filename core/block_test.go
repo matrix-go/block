@@ -5,10 +5,42 @@ import (
 	"testing"
 	"time"
 
+	"github.com/matrix-go/block/crypto"
 	"github.com/matrix-go/block/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func randomBlock(height uint64) *Block {
+	header := &Header{
+		Version:       1,
+		PrevBlockHash: types.RandomHash(),
+		Height:        height,
+		Timestamp:     uint64(time.Now().UnixNano()),
+	}
+	txs := []Transaction{
+		{
+			Data: []byte("foo"),
+		},
+	}
+	return NewBlock(header, txs)
+}
+
+func TestBlockSignAndVerify(t *testing.T) {
+	privKey, err := crypto.GeneratePrivateKey()
+	require.NoError(t, err)
+	b := randomBlock(0)
+	err = b.Sign(privKey)
+	require.NoError(t, err)
+	t.Logf("block signature ===> %v", b.Signature)
+	t.Logf("block validator ===> %v", b.Validator)
+	assert.Equal(t, privKey.PublicKey().Address(), b.Validator.Address())
+	err = b.Verify()
+	require.NoError(t, err)
+	b.Height = 100
+	err = b.Verify()
+	assert.ErrorIs(t, err, ErrBlockVerifyFailed)
+}
 
 func TestBlockHeaderEncodeAndDecode(t *testing.T) {
 	h := &Header{
@@ -33,27 +65,13 @@ func TestBlockHeaderEncodeAndDecode(t *testing.T) {
 }
 
 func TestBlockEncodeAndDecode(t *testing.T) {
-
-	header := Header{
-		Version:       1,
-		PrevBlockHash: types.RandomHash(),
-		Timestamp:     uint64(time.Now().UnixMilli()),
-		Height:        1,
-		Nounce:        15,
-	}
-	txs := []Transaction{
-		{
-			Data: []byte("hello"),
-		},
-	}
-	b := NewBlock(header, txs)
-
+	b := randomBlock(0)
 	buf := &bytes.Buffer{}
 	encDec := NewBLockEncoderDecoder()
 	err := b.Encode(buf, encDec)
 	require.NoError(t, err)
 
-	bDecode := &Block{}
+	bDecode := randomBlock(0)
 	err = bDecode.Decode(buf, encDec)
 	require.NoError(t, err)
 	assert.Equal(t, b.Header, bDecode.Header)
@@ -62,16 +80,7 @@ func TestBlockEncodeAndDecode(t *testing.T) {
 }
 
 func TestBlockHash(t *testing.T) {
-	header := Header{
-		Version:       1,
-		PrevBlockHash: types.RandomHash(),
-		Timestamp:     uint64(time.Now().UnixMilli()),
-		Height:        1,
-		Nounce:        15,
-	}
-	txs := make([]Transaction, 0)
-	b := NewBlock(header, txs)
-
+	b := randomBlock(0)
 	hasher := NewBlockHasher()
 	hash := b.Hash(hasher)
 	assert.False(t, hash.IsZero())

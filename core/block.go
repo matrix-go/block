@@ -1,7 +1,11 @@
 package core
 
 import (
+	"bytes"
 	"encoding/binary"
+	"encoding/gob"
+	"errors"
+	"fmt"
 	"io"
 
 	"github.com/matrix-go/block/crypto"
@@ -49,22 +53,38 @@ func (h *Header) DecodeBinary(r io.Reader) error {
 }
 
 type Block struct {
-	Header
+	*Header
 	Transactions []Transaction
 
 	// validator that mine the block
 	Validator crypto.PublicKey
-	Signature crypto.Signature
+	Signature *crypto.Signature
 
 	// cached hash of block
 	hash types.Hash
 }
 
-func NewBlock(header Header, txs []Transaction) *Block {
+func NewBlock(header *Header, txs []Transaction) *Block {
 	return &Block{
 		Header:       header,
 		Transactions: txs,
 	}
+}
+
+func (b *Block) Sign(privKey *crypto.PrivateKey) error {
+	b.Signature = privKey.Sign(b.HeaderData())
+	b.Validator = *privKey.PublicKey()
+	return nil
+}
+
+func (b *Block) Verify() error {
+	if b.Signature == nil {
+		return fmt.Errorf("block has no signature")
+	}
+	if !b.Signature.Verify(&b.Validator, b.HeaderData()) {
+		return ErrBlockVerifyFailed
+	}
+	return nil
 }
 
 func (b *Block) Hash(hasher Hasher[*Block]) types.Hash {
@@ -81,3 +101,14 @@ func (b *Block) Encode(w io.Writer, enc Encoder[*Block]) error {
 func (b *Block) Decode(r io.Reader, dec Decoder[*Block]) error {
 	return dec.Decode(r, b)
 }
+
+func (b *Block) HeaderData() []byte {
+	buf := bytes.Buffer{}
+	enc := gob.NewEncoder(&buf)
+	enc.Encode(b.Header)
+	return buf.Bytes()
+}
+
+var (
+	ErrBlockVerifyFailed = errors.New("block valid failed")
+)

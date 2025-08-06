@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestTransactionSign(t *testing.T) {
+func TestTransactionSignAndVerify(t *testing.T) {
 	privKey, err := crypto.GeneratePrivateKey()
 	require.NoError(t, err)
 	tx := NewTransaction([]byte("hello"))
