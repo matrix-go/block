@@ -1,24 +1,49 @@
 package core
 
+import (
+	"errors"
+	"fmt"
+)
+
 type Validator interface {
-	ValidateBlock(block *Block) error
+	ValidateBlock(bc *Blockchain, block *Block) error
 }
 
 type BlockValidator struct {
-	bc *Blockchain
 }
 
-func NewBlockValidator(bc *Blockchain) *BlockValidator {
-	return &BlockValidator{bc}
+func NewBlockValidator() *BlockValidator {
+	return &BlockValidator{}
 }
 
-func (b *BlockValidator) ValidateBlock(block *Block) error {
+func (b *BlockValidator) ValidateBlock(bc *Blockchain, block *Block) error {
+	// height of block
+	if bc.HasBlock(block.Height) {
+		return fmt.Errorf("block already in blockchain")
+	}
+	// too high
+	if block.Height != bc.Height()+1 {
+		return fmt.Errorf("block %s, %w", block.Hash(NewHeaderHasher()), ErrBlockTooHigh)
+	}
 
-	//
-	b.bc.Height()
-	block.Height
+	// verify block
+	if err := block.Verify(); err != nil {
+		return err
+	}
 
+	header, err := bc.GetHeader(bc.Height())
+	if err != nil {
+		return err
+	}
+	hash := NewHeaderHasher().Hash(header)
+	if block.PrevBlockHash != hash {
+		return fmt.Errorf("previous datahash not valid")
+	}
 	return nil
 }
 
 var _ Validator = (*BlockValidator)(nil)
+
+var (
+	ErrBlockTooHigh = errors.New("block too high")
+)

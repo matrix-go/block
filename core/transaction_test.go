@@ -14,7 +14,21 @@ func TestTransactionSignAndVerify(t *testing.T) {
 	err = tx.Sign(privKey)
 	require.NoError(t, err)
 	t.Logf("tx signature ===> %+v", tx.Signature)
-	t.Logf("tx publicKey ===> %+v", tx.PublicKey)
+	t.Logf("tx publicKey ===> %+v", tx.From)
 	err = tx.Verify()
 	require.NoError(t, err)
+}
+
+func randomTxWithSignature() *Transaction {
+	privKey, err := crypto.GeneratePrivateKey()
+	if err != nil {
+		panic(err)
+	}
+	tx := &Transaction{
+		Data: []byte("foo"),
+	}
+	if err := tx.Sign(privKey); err != nil {
+		panic(err)
+	}
+	return tx
 }
