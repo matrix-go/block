@@ -38,14 +38,14 @@ func TestVerifySignature(t *testing.T) {
 	msg := []byte("Hello")
 	sig := privKey.Sign(msg)
 
-	// test with valid key
+	// test with valid Key
 	verified := sig.Verify(privKey.PublicKey(), msg)
 	assert.True(t, verified)
 
 	// test with invalid msg
 	assert.False(t, sig.Verify(privKey.PublicKey(), []byte("world")))
 
-	// test with invalid key
+	// test with invalid Key
 	privKey, err = GeneratePrivateKey()
 	require.NoError(t, err)
 	assert.False(t, sig.Verify(privKey.PublicKey(), msg))

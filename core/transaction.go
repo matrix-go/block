@@ -2,15 +2,19 @@ package core
 
 import (
 	"fmt"
-	"io"
-
 	"github.com/matrix-go/block/crypto"
+	"github.com/matrix-go/block/types"
 )
 
 type Transaction struct {
 	Data      []byte
 	From      crypto.PublicKey
 	Signature *crypto.Signature
+
+	// first local node see the tx
+	firstSeen int64
+	// cached hash
+	hash types.Hash
 }
 
 func NewTransaction(data []byte) *Transaction {
@@ -19,10 +23,10 @@ func NewTransaction(data []byte) *Transaction {
 	}
 }
 
-func (tx *Transaction) Sign(privKey *crypto.PrivateKey) error {
-	sig := privKey.Sign(tx.Data)
+func (tx *Transaction) Sign(privateKey *crypto.PrivateKey) error {
+	sig := privateKey.Sign(tx.Data)
 
-	tx.From = *privKey.PublicKey()
+	tx.From = *privateKey.PublicKey()
 	tx.Signature = sig
 
 	return nil
@@ -38,10 +42,25 @@ func (tx *Transaction) Verify() error {
 	return fmt.Errorf("transaction signature verified failed")
 }
 
-func (tx *Transaction) EncodeBinary(w io.Writer) error {
-	return nil
+func (tx *Transaction) Hash(hasher Hasher[*Transaction]) types.Hash {
+	if tx.hash.IsZero() {
+		tx.hash = hasher.Hash(tx)
+	}
+	return tx.hash
 }
 
-func (tx *Transaction) DecodeBinary(r io.Reader) error {
-	return nil
+func (tx *Transaction) Encode(enc Encoder[*Transaction]) error {
+	return enc.Encode(tx)
+}
+
+func (tx *Transaction) Decode(dec Decoder[*Transaction]) error {
+	return dec.Decode(tx)
+}
+
+func (tx *Transaction) FirstSeen() int64 {
+	return tx.firstSeen
+}
+
+func (tx *Transaction) SetFirstSeen(t int64) {
+	tx.firstSeen = t
 }

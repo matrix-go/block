@@ -20,6 +20,7 @@ func main() {
 	}
 	opt := network.ServerOpt{
 		Transports: []network.Transport{localTr, remoteTr},
+		BlockTime:  time.Second,
 	}
 
 	server := network.NewServer(opt)

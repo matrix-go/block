@@ -59,7 +59,7 @@ func TestBlockHeaderEncodeAndDecode(t *testing.T) {
 		PrevBlockHash: types.RandomHash(),
 		Timestamp:     uint64(time.Now().UnixMilli()),
 		Height:        1,
-		Nounce:        15,
+		Nonce:         15,
 	}
 	buf := &bytes.Buffer{}
 	err := h.EncodeBinary(buf)
@@ -72,7 +72,7 @@ func TestBlockHeaderEncodeAndDecode(t *testing.T) {
 	assert.Equal(t, h.PrevBlockHash, hDecode.PrevBlockHash)
 	assert.Equal(t, h.Timestamp, hDecode.Timestamp)
 	assert.Equal(t, h.Height, hDecode.Height)
-	assert.Equal(t, h.Nounce, hDecode.Nounce)
+	assert.Equal(t, h.Nonce, hDecode.Nonce)
 }
 
 func TestBlockEncodeAndDecode(t *testing.T) {

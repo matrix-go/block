@@ -57,51 +57,51 @@ func (k *PrivateKey) Bytes() []byte {
 
 func (k *PrivateKey) Sign(msg []byte) *Signature {
 	return &Signature{
-		value: ed25519.Sign(k.key, msg),
+		Value: ed25519.Sign(k.key, msg),
 	}
 }
 
 func (k *PrivateKey) PublicKey() *PublicKey {
-	// key := make([]byte, kPublicKeyLen)
-	// copy(key, k.key[32:])
+	// Key := make([]byte, kPublicKeyLen)
+	// copy(Key, k.Key[32:])
 	key, _ := k.key.Public().(ed25519.PublicKey)
 	return &PublicKey{
-		key: key,
+		Key: key,
 	}
 }
 
 type PublicKey struct {
-	key ed25519.PublicKey
+	Key ed25519.PublicKey
 }
 
 func (k PublicKey) Bytes() []byte {
-	return k.key
+	return k.Key
 }
 
 func (k PublicKey) String() string {
-	return "0x" + hex.EncodeToString(k.key)
+	return "0x" + hex.EncodeToString(k.Key)
 }
 
 func (k PublicKey) Address() Address {
 	return Address{
-		value: k.key[len(k.key)-kAddressLen:],
+		value: k.Key[len(k.Key)-kAddressLen:],
 	}
 }
 
 type Signature struct {
-	value []byte
+	Value []byte
 }
 
 func (s Signature) Bytes() []byte {
-	return s.value
+	return s.Value
 }
 
 func (s Signature) String() string {
-	return "0x" + hex.EncodeToString(s.value)
+	return "0x" + hex.EncodeToString(s.Value)
 }
 
 func (s Signature) Verify(pubKey *PublicKey, msg []byte) bool {
-	return ed25519.Verify(pubKey.key, msg, s.value)
+	return ed25519.Verify(pubKey.Key, msg, s.Value)
 }
 
 type Address struct {

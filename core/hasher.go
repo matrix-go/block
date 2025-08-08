@@ -23,15 +23,28 @@ func (h *BlockHasher) Hash(b *Block) types.Hash {
 
 var _ Hasher[*Block] = (*BlockHasher)(nil)
 
-type HeaderHash struct {
+type HeaderHasher struct {
 }
 
-func NewHeaderHasher() *HeaderHash {
-	return &HeaderHash{}
+func NewHeaderHasher() *HeaderHasher {
+	return &HeaderHasher{}
 }
 
-func (h *HeaderHash) Hash(header *Header) types.Hash {
+func (h *HeaderHasher) Hash(header *Header) types.Hash {
 	return sha256.Sum256(header.Bytes())
 }
 
-var _ Hasher[*Header] = (*HeaderHash)(nil)
+var _ Hasher[*Header] = (*HeaderHasher)(nil)
+
+type TransactionHasher struct {
+}
+
+func NewTransactionHasher() *TransactionHasher {
+	return &TransactionHasher{}
+}
+
+func (h *TransactionHasher) Hash(tx *Transaction) types.Hash {
+	return sha256.Sum256(tx.Data)
+}
+
+var _ Hasher[*Transaction] = (*TransactionHasher)(nil)

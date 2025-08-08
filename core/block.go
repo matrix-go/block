@@ -18,7 +18,7 @@ type Header struct {
 	PrevBlockHash types.Hash
 	Timestamp     uint64
 	Height        uint64
-	Nounce        uint64
+	Nonce         uint64
 }
 
 func (h *Header) Bytes() []byte {
@@ -41,7 +41,7 @@ func (h *Header) EncodeBinary(w io.Writer) error {
 	if err := binary.Write(w, binary.LittleEndian, &h.Height); err != nil {
 		return err
 	}
-	return binary.Write(w, binary.LittleEndian, &h.Nounce)
+	return binary.Write(w, binary.LittleEndian, &h.Nonce)
 }
 func (h *Header) DecodeBinary(r io.Reader) error {
 	if err := binary.Read(r, binary.LittleEndian, &h.Version); err != nil {
@@ -56,7 +56,7 @@ func (h *Header) DecodeBinary(r io.Reader) error {
 	if err := binary.Read(r, binary.LittleEndian, &h.Height); err != nil {
 		return err
 	}
-	return binary.Read(r, binary.LittleEndian, &h.Nounce)
+	return binary.Read(r, binary.LittleEndian, &h.Nonce)
 }
 
 type Block struct {
@@ -82,9 +82,9 @@ func (b *Block) AddTransaction(tx *Transaction) {
 	b.Transactions = append(b.Transactions, tx)
 }
 
-func (b *Block) Sign(privKey *crypto.PrivateKey) error {
-	b.Signature = privKey.Sign(b.Header.Bytes())
-	b.Validator = *privKey.PublicKey()
+func (b *Block) Sign(privateKey *crypto.PrivateKey) error {
+	b.Signature = privateKey.Sign(b.Header.Bytes())
+	b.Validator = *privateKey.PublicKey()
 	return nil
 }
 
@@ -110,12 +110,12 @@ func (b *Block) Hash(hasher Hasher[*Header]) types.Hash {
 	return b.hash
 }
 
-func (b *Block) Encode(w io.Writer, enc Encoder[*Block]) error {
-	return enc.Encode(w, b)
+func (b *Block) Encode(enc Encoder[*Block]) error {
+	return enc.Encode(b)
 }
 
-func (b *Block) Decode(r io.Reader, dec Decoder[*Block]) error {
-	return dec.Decode(r, b)
+func (b *Block) Decode(dec Decoder[*Block]) error {
+	return dec.Decode(b)
 }
 
 var (

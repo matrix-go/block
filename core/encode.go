@@ -1,44 +1,46 @@
 package core
 
-import "io"
+import (
+	"encoding/gob"
+	"io"
+)
 
 type Encoder[T any] interface {
-	Encode(w io.Writer, t T) error
+	Encode(t T) error
 }
 
 type Decoder[T any] interface {
-	Decode(r io.Reader, t T) error
+	Decode(t T) error
 }
 
-type BlockEncoderDecoder struct {
+type TxEncoder struct {
+	encoder *gob.Encoder
 }
 
-func NewBLockEncoderDecoder() *BlockEncoderDecoder {
-	return &BlockEncoderDecoder{}
+func NewTxEncoder(w io.Writer) *TxEncoder {
+	return &TxEncoder{
+		encoder: gob.NewEncoder(w),
+	}
 }
 
-func (e *BlockEncoderDecoder) Encode(w io.Writer, b *Block) error {
-	if err := b.Header.EncodeBinary(w); err != nil {
-		return err
-	}
-	for _, tx := range b.Transactions {
-		if err := tx.EncodeBinary(w); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-func (e *BlockEncoderDecoder) Decode(r io.Reader, b *Block) error {
-	if err := b.Header.DecodeBinary(r); err != nil {
-		return err
-	}
-	for _, tx := range b.Transactions {
-		if err := tx.DecodeBinary(r); err != nil {
-			return err
-		}
-	}
-	return nil
+func (enc *TxEncoder) Encode(tx *Transaction) error {
+	return enc.encoder.Encode(tx)
 }
 
-var _ Encoder[*Block] = (*BlockEncoderDecoder)(nil)
-var _ Decoder[*Block] = (*BlockEncoderDecoder)(nil)
+var _ Encoder[*Transaction] = (*TxEncoder)(nil)
+
+type TxDecoder struct {
+	decoder *gob.Decoder
+}
+
+func NewTxDecoder(r io.Reader) *TxDecoder {
+	return &TxDecoder{
+		decoder: gob.NewDecoder(r),
+	}
+}
+
+func (dec *TxDecoder) Decode(tx *Transaction) error {
+	return dec.decoder.Decode(tx)
+}
+
+var _ Decoder[*Transaction] = (*TxDecoder)(nil)
