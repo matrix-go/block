@@ -7,9 +7,5 @@ type Transport interface {
 	Connect(Transport) error
 	SendMessage(to NetAddr, msg []byte) error
 	Addr() NetAddr
-}
-
-type RPC struct {
-	From    NetAddr
-	Payload []byte
+	Broadcast(msg []byte) error
 }
