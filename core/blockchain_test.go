@@ -1,6 +1,8 @@
 package core
 
 import (
+	"github.com/go-kit/log"
+	"os"
 	"testing"
 
 	"github.com/matrix-go/block/types"
@@ -10,7 +12,8 @@ import (
 
 func newBlockChainWithGenesisBlock(t *testing.T) (bc *Blockchain) {
 	b := randomBlockWithSignature(0, types.Hash{})
-	bc, err := NewBlockchain(b)
+	logger := log.NewLogfmtLogger(os.Stderr)
+	bc, err := NewBlockchain(b, logger)
 	require.NoError(t, err)
 	return bc
 }

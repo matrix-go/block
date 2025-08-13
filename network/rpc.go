@@ -5,7 +5,6 @@ import (
 	"encoding/gob"
 	"fmt"
 	"github.com/matrix-go/block/core"
-	"github.com/sirupsen/logrus"
 	"io"
 )
 
@@ -29,10 +28,6 @@ func DefaultRPCDecodeFunc(rpc RPC) (*DecodeMessage, error) {
 	if err := gob.NewDecoder(rpc.Payload).Decode(&msg); err != nil {
 		return nil, fmt.Errorf("failed to decode RPC payload %s: %s", rpc.From, err)
 	}
-	logrus.WithFields(logrus.Fields{
-		"from": rpc.From,
-		"type": msg.Header,
-	}).Infof("process message from: %v", rpc.From)
 	switch msg.Header {
 	case MessageTypeTx:
 		var tx = &core.Transaction{}

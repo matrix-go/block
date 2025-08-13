@@ -13,10 +13,10 @@ import (
 
 func randomBlock(height uint64, prevHash types.Hash) *Block {
 	header := &Header{
-		Version:       1,
-		PrevBlockHash: prevHash,
-		Height:        height,
-		Timestamp:     uint64(time.Now().UnixNano()),
+		Version:   1,
+		PrevHash:  prevHash,
+		Height:    height,
+		Timestamp: uint64(time.Now().UnixNano()),
 	}
 	txs := []*Transaction{}
 	return NewBlock(header, txs)
@@ -30,6 +30,10 @@ func randomBlockWithSignature(height uint64, prevHash types.Hash) *Block {
 	b := randomBlock(height, prevHash)
 	tx := randomTxWithSignature()
 	b.AddTransaction(tx)
+	b.DataHash, err = CalculateDataHash(b.Transactions)
+	if err != nil {
+		panic(err)
+	}
 	err = b.Sign(privKey)
 	if err != nil {
 		panic(err)
@@ -55,11 +59,11 @@ func TestBlockSignAndVerify(t *testing.T) {
 
 func TestBlockHeaderEncodeAndDecode(t *testing.T) {
 	h := &Header{
-		Version:       1,
-		PrevBlockHash: types.RandomHash(),
-		Timestamp:     uint64(time.Now().UnixMilli()),
-		Height:        1,
-		Nonce:         15,
+		Version:   1,
+		PrevHash:  types.RandomHash(),
+		Timestamp: uint64(time.Now().UnixMilli()),
+		Height:    1,
+		Nonce:     15,
 	}
 	buf := &bytes.Buffer{}
 	err := h.EncodeBinary(buf)
@@ -69,7 +73,7 @@ func TestBlockHeaderEncodeAndDecode(t *testing.T) {
 	err = hDecode.DecodeBinary(buf)
 	require.NoError(t, err)
 	assert.Equal(t, h.Version, hDecode.Version)
-	assert.Equal(t, h.PrevBlockHash, hDecode.PrevBlockHash)
+	assert.Equal(t, h.PrevHash, hDecode.PrevHash)
 	assert.Equal(t, h.Timestamp, hDecode.Timestamp)
 	assert.Equal(t, h.Height, hDecode.Height)
 	assert.Equal(t, h.Nonce, hDecode.Nonce)

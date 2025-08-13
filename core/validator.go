@@ -36,7 +36,7 @@ func (b *BlockValidator) ValidateBlock(bc *Blockchain, block *Block) error {
 		return err
 	}
 	hash := NewHeaderHasher().Hash(header)
-	if block.PrevBlockHash != hash {
+	if block.PrevHash != hash {
 		return fmt.Errorf("previous datahash not valid")
 	}
 	return nil

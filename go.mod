@@ -4,7 +4,11 @@ go 1.24.3
 
 require github.com/stretchr/testify v1.10.0
 
-require golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8 // indirect
+require (
+	github.com/go-kit/log v0.2.1 // indirect
+	github.com/go-logfmt/logfmt v0.5.1 // indirect
+	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8 // indirect
+)
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect

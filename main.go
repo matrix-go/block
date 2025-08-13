@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/matrix-go/block/core"
 	"github.com/matrix-go/block/crypto"
+	"github.com/sirupsen/logrus"
 	"math/rand"
 	"strconv"
 	"time"
@@ -14,32 +15,57 @@ import (
 
 func main() {
 	localTr := network.NewLocalTransport("LOCAL")
-	remoteTr := network.NewLocalTransport("REMOTE")
-	err := localTr.Connect(remoteTr)
-	if err != nil {
+	remoteTrA := network.NewLocalTransport("REMOTE_1")
+	remoteTrB := network.NewLocalTransport("REMOTE_2")
+	remoteTrC := network.NewLocalTransport("REMOTE_3")
+	_ = localTr.Connect(remoteTrA)
+	_ = remoteTrA.Connect(remoteTrB)
+	_ = remoteTrB.Connect(remoteTrC)
+	_ = remoteTrA.Connect(localTr)
+
+	if err := initRemoteSevers(remoteTrA, remoteTrB, remoteTrC); err != nil {
 		panic(err)
-	}
-	err = remoteTr.Connect(localTr)
-	if err != nil {
-		panic(err)
-	}
-	opt := network.ServerOpt{
-		Transports: []network.Transport{localTr, remoteTr},
-		BlockTime:  time.Second,
 	}
 
-	server := network.NewServer(opt)
-	// TODO: mock remote rpc call
 	go func() {
 		for {
-			if err := sendTransaction(remoteTr, localTr.Addr()); err != nil {
-				fmt.Printf("failed to send transaction: %s", err)
+			if err := sendTransaction(remoteTrA, localTr.Addr()); err != nil {
+				logrus.Error(err)
 			}
-			time.Sleep(time.Second * 1)
+			time.Sleep(time.Second * 2)
 		}
 	}()
 
-	server.Start()
+	privateKey, err := crypto.GeneratePrivateKey()
+	if err != nil {
+		panic(err)
+	}
+	localServer := makeServer("LOCAL", privateKey, localTr)
+	localServer.Start()
+}
+
+func initRemoteSevers(trs ...network.Transport) error {
+	for idx, tr := range trs {
+		id := fmt.Sprintf("REMOTE_%d", idx+1)
+		s := makeServer(id, nil, tr)
+		go s.Start()
+	}
+	return nil
+}
+
+func makeServer(id string, privateKey *crypto.PrivateKey, tr network.Transport) *network.Server {
+	opt := network.ServerOpt{
+		ID:         id,
+		Transports: []network.Transport{tr},
+		BlockTime:  time.Second * 5,
+		PrivateKey: privateKey,
+	}
+
+	server, err := network.NewServer(opt)
+	if err != nil {
+		panic(err)
+	}
+	return server
 }
 
 func sendTransaction(tr network.Transport, to network.NetAddr) error {
