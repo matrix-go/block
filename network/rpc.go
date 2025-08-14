@@ -40,6 +40,14 @@ func DefaultRPCDecodeFunc(rpc RPC) (*DecodeMessage, error) {
 		}, nil
 		//return h.processor.processTransaction(rpc.From, tx)
 	case MessageTypeBlock:
+		var block = &core.Block{}
+		if err := block.Decode(core.NewGobBlockDecoder(bytes.NewReader(msg.Data))); err != nil {
+			return nil, fmt.Errorf("failed to decode block: %s", err)
+		}
+		return &DecodeMessage{
+			From: rpc.From,
+			Data: block,
+		}, nil
 	default:
 		return nil, fmt.Errorf("uinknown message type %v", msg.Header)
 	}

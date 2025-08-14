@@ -105,3 +105,23 @@ func TestBlockHash(t *testing.T) {
 	assert.False(t, hash.IsZero())
 	t.Logf("block hash: ====> %v", hash)
 }
+
+func TestDecodeEncodeBlock(t *testing.T) {
+	b := randomBlockWithSignature(0, types.Hash{})
+	var buf bytes.Buffer
+	err := b.Encode(NewGobBlockEncoder(&buf))
+	require.NoError(t, err)
+
+	var block Block
+	err = block.Decode(NewGobBlockDecoder(&buf))
+	require.NoError(t, err)
+
+	assert.Equal(t, b.Hash(NewHeaderHasher()), block.Hash(NewHeaderHasher()))
+	assert.Equal(t, b.Nonce, block.Nonce)
+	assert.Equal(t, b.PrevHash, block.PrevHash)
+	assert.Equal(t, b.Timestamp, block.Timestamp)
+	assert.Equal(t, b.Height, block.Height)
+	assert.Equal(t, b.Nonce, block.Nonce)
+	assert.Equal(t, b.Signature, block.Signature)
+	assert.Equal(t, b.Version, block.Version)
+}

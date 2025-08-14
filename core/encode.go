@@ -44,3 +44,35 @@ func (dec *TxDecoder) Decode(tx *Transaction) error {
 }
 
 var _ Decoder[*Transaction] = (*TxDecoder)(nil)
+
+type GobBlockEncoder struct {
+	encoder *gob.Encoder
+}
+
+func NewGobBlockEncoder(w io.Writer) *GobBlockEncoder {
+	return &GobBlockEncoder{
+		encoder: gob.NewEncoder(w),
+	}
+}
+
+func (e *GobBlockEncoder) Encode(b *Block) error {
+	return e.encoder.Encode(b)
+}
+
+var _ Encoder[*Block] = (*GobBlockEncoder)(nil)
+
+type GobBlockDecoder struct {
+	decoder *gob.Decoder
+}
+
+func NewGobBlockDecoder(r io.Reader) *GobBlockDecoder {
+	return &GobBlockDecoder{
+		decoder: gob.NewDecoder(r),
+	}
+}
+
+func (e *GobBlockDecoder) Decode(b *Block) error {
+	return e.decoder.Decode(b)
+}
+
+var _ Decoder[*Block] = (*GobBlockDecoder)(nil)
