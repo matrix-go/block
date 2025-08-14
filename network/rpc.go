@@ -48,6 +48,8 @@ func DefaultRPCDecodeFunc(rpc RPC) (*DecodeMessage, error) {
 			From: rpc.From,
 			Data: block,
 		}, nil
+	case MessageTypeGetBlock:
+		// get all blocks
 	default:
 		return nil, fmt.Errorf("uinknown message type %v", msg.Header)
 	}
@@ -81,6 +83,7 @@ func (m *Message) Bytes() []byte {
 type MessageType byte
 
 const (
-	MessageTypeTx    MessageType = 0x01
-	MessageTypeBlock MessageType = 0x02
+	MessageTypeTx       MessageType = 0x01
+	MessageTypeBlock    MessageType = 0x02
+	MessageTypeGetBlock MessageType = 0x03
 )

@@ -6,8 +6,6 @@ import (
 	"github.com/matrix-go/block/core"
 	"github.com/matrix-go/block/crypto"
 	"github.com/sirupsen/logrus"
-	"math/rand"
-	"strconv"
 	"time"
 
 	"github.com/matrix-go/block/network"
@@ -69,7 +67,7 @@ func makeServer(id string, privateKey *crypto.PrivateKey, tr network.Transport) 
 }
 
 func sendTransaction(tr network.Transport, to network.NetAddr) error {
-	data := []byte(strconv.FormatInt(rand.Int63n(1000), 10))
+	data := []byte{0x01, 0x0a, 0x02, 0x0a, 0x0b}
 	tx := core.NewTransaction(data)
 	privateKey, err := crypto.GeneratePrivateKey()
 	if err != nil {

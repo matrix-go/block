@@ -36,6 +36,19 @@ func (bc *Blockchain) AddBlock(block *Block) error {
 	if err := bc.validator.ValidateBlock(bc, block); err != nil {
 		return err
 	}
+	// run vm code
+	for _, tx := range block.Transactions {
+		bc.logger.Log("msg", "executing code", "len", len(tx.Data), "hash", tx.Hash(NewTransactionHasher()))
+		vm := NewVM(tx.Data)
+		if err := vm.Run(); err != nil {
+			return err
+		}
+		if vm.sp >= 0 {
+			bc.logger.Log("result", vm.stack[vm.sp])
+		} else {
+			bc.logger.Log("msg", "vm not executed")
+		}
+	}
 	// add block
 	if err := bc.addBlock(block); err != nil {
 		return err
