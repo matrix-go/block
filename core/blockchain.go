@@ -43,8 +43,8 @@ func (bc *Blockchain) AddBlock(block *Block) error {
 		if err := vm.Run(); err != nil {
 			return err
 		}
-		if vm.sp >= 0 {
-			bc.logger.Log("result", vm.stack[vm.sp])
+		if vm.stack.sp > 0 {
+			bc.logger.Log("result", vm.stack.data[vm.stack.sp-1])
 		} else {
 			bc.logger.Log("msg", "vm not executed")
 		}
