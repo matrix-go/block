@@ -1,6 +1,7 @@
 package core
 
 import (
+	"github.com/matrix-go/block/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -27,8 +28,11 @@ func TestVM_Run(t *testing.T) {
 	// add
 	// 3
 	// push stack int and add
+
+	contractState := NewState()
 	data := []byte{0x01, 0x0a, 0x02, 0x0a, 0x0b}
-	vm := NewVM(data)
+	// 1 + 2
+	vm := NewVM(data, contractState)
 	err := vm.Run()
 	require.NoError(t, err)
 	assert.Equal(t, 1, vm.stack.sp)
@@ -37,8 +41,10 @@ func TestVM_Run(t *testing.T) {
 	assert.Equal(t, 3, result)
 
 	// push bytes and pack
-	data = []byte{0x02, 0x0a, 0x61, 0x0c, 0x61, 0x0c, 0x0d}
-	vm = NewVM(data)
+	// 0x61(a), 0x0c(pushByte), 0x61(a), 0x0c(pushByte), 0x02(len=2), 0x0a(pushInt), 0x0d(pack)
+	// aa
+	data = []byte{0x61, 0x0c, 0x61, 0x0c, 0x02, 0x0a, 0x0d}
+	vm = NewVM(data, contractState)
 	err = vm.Run()
 	require.NoError(t, err)
 	assert.Equal(t, 1, vm.stack.sp)
@@ -47,12 +53,38 @@ func TestVM_Run(t *testing.T) {
 	assert.Equal(t, "aa", string(res))
 
 	// push int and sub
+	// 2-1
 	data = []byte{0x02, 0x0a, 0x01, 0x0a, 0x0e}
-	vm = NewVM(data)
+	vm = NewVM(data, contractState)
 	err = vm.Run()
 	require.NoError(t, err)
 	assert.Equal(t, 1, vm.stack.sp)
 	t.Logf("stack: %v", vm.stack.data)
 	r := vm.stack.Shift().(int)
 	assert.Equal(t, 1, r)
+
+	// store state
+	// push FOO and pack
+	// push 3 push 2 and sub
+	// store [FOO, 1]
+	// 0x03(len=3), 0x0a(pushInt), 0x46(f), 0x0c(pushByte), 0x4f(o), 0x0c(pushByte), 0x4f(o), 0x0c(pushByte), 0x0d(pack)
+	// foo = 3-2
+	data = []byte{
+		0x46, 0x0c, 0x4f, 0x0c, 0x4f, 0x0c, 0x03, 0x0a, 0x0d, // push FOO and pack
+		0x03, 0x0a, 0x02, 0x0a, 0x0e, // push 3, push 2 and sub
+		0x0f, // store [FOO,1]
+	}
+
+	vm = NewVM(data, contractState)
+	err = vm.Run()
+	require.NoError(t, err)
+	t.Logf("stack: %v", vm.stack.data)
+	t.Logf("stack sp: %v", vm.stack.sp)
+	assert.Equal(t, 1, r)
+	t.Logf("state: %v", vm.contractState.data)
+	val, err := vm.contractState.Get([]byte("FOO"))
+	require.NoError(t, err)
+	des := util.DeserializeInt64(val)
+	assert.Equal(t, int64(1), des)
+
 }

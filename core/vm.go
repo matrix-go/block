@@ -1,6 +1,9 @@
 package core
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/matrix-go/block/util"
+)
 
 type Stack struct {
 	data []any
@@ -20,13 +23,16 @@ func (s *Stack) Push(v any) {
 }
 
 func (s *Stack) Pop() any {
-	ret := s.data[s.sp]
-	s.data = append(s.data[:s.sp], s.data[s.sp+1:]...)
+	ret := s.data[s.sp-1]
+	s.data = append(s.data[:s.sp-1], s.data[s.sp:]...)
 	s.sp--
 	return ret
 }
 
 func (s *Stack) Shift() any {
+	if s.sp == 0 {
+		return nil
+	}
 	ret := s.data[0]
 	s.data = append(s.data[1:], nil)
 	s.sp--
@@ -34,57 +40,73 @@ func (s *Stack) Shift() any {
 }
 
 type VM struct {
-	data  []byte
-	ip    int // instruction pointer
-	stack *Stack
+	data          []byte
+	ip            int // instruction pointer
+	stack         *Stack
+	contractState *State // contract state
 }
 
-func NewVM(data []byte) *VM {
+func NewVM(data []byte, contractState *State) *VM {
 	return &VM{
-		data:  data,
-		ip:    0,
-		stack: NewStack(128),
+		data:          data,
+		ip:            0,
+		stack:         NewStack(128),
+		contractState: contractState,
 	}
 }
 
-func (v *VM) Run() error {
+func (vm *VM) Run() error {
 	for {
-		instr := v.data[v.ip]
-		if err := v.Exec(Instruction(instr)); err != nil {
+		instr := vm.data[vm.ip]
+		if err := vm.Exec(Instruction(instr)); err != nil {
 			fmt.Println(err)
 		}
-		v.ip++
-		if v.ip >= len(v.data) {
+		vm.ip++
+		if vm.ip >= len(vm.data) {
 			break
 		}
 	}
 	return nil
 }
 
-func (v *VM) Exec(instr Instruction) error {
+func (vm *VM) Exec(instr Instruction) error {
 	fmt.Println("executing instruction:", instr)
 	switch instr {
 	case InstructionPushInt:
-		v.stack.Push(int(v.data[v.ip-1]))
+		vm.stack.Push(int(vm.data[vm.ip-1]))
 	case InstructionPushByte:
-		v.stack.Push(v.data[v.ip-1])
+		vm.stack.Push(vm.data[vm.ip-1])
 	case InstructionAdd:
-		a := v.stack.Shift()
-		b := v.stack.Shift()
+		b := vm.stack.Pop()
+		a := vm.stack.Pop()
 		c := a.(int) + b.(int)
-		v.stack.Push(c)
+		vm.stack.Push(c)
 	case InstructionSub:
-		a := v.stack.Shift()
-		b := v.stack.Shift()
+		b := vm.stack.Pop()
+		a := vm.stack.Pop()
 		c := a.(int) - b.(int)
-		v.stack.Push(c)
+		vm.stack.Push(c)
 	case InstructionPack:
-		n := v.stack.Shift().(int)
+		n := vm.stack.Pop().(int)
 		b := make([]byte, n)
 		for i := 0; i < n; i++ {
-			b[i] = v.stack.Shift().(byte)
+			b[n-i-1] = vm.stack.Pop().(byte)
 		}
-		v.stack.Push(b)
+		vm.stack.Push(b)
+	case InstructionStore:
+		v := vm.stack.Pop()
+		var value []byte
+		switch v.(type) {
+		case int:
+			value = util.SerializeInt64(int64(v.(int)))
+		case []byte:
+			value = v.([]byte)
+		case byte:
+			value = []byte{v.(byte)}
+		}
+		key := vm.stack.Pop().([]byte)
+		vm.contractState.Put(key, value)
+		fmt.Printf("key: %v, value: %v\n", key, value)
 	}
 
 	return nil
@@ -98,4 +120,5 @@ const (
 	InstructionPushByte Instruction = 0x0c // 12
 	InstructionPack     Instruction = 0x0d // 13
 	InstructionSub      Instruction = 0x0e // 14
+	InstructionStore    Instruction = 0x0f // 15
 )
