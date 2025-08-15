@@ -80,12 +80,22 @@ func (vm *VM) Exec(instr Instruction) error {
 		b := vm.stack.Pop()
 		a := vm.stack.Pop()
 		c := a.(int) + b.(int)
-		vm.stack.Push(c)
+		vm.stack.Push(util.SerializeInt64(int64(c)))
 	case InstructionSub:
 		b := vm.stack.Pop()
 		a := vm.stack.Pop()
 		c := a.(int) - b.(int)
-		vm.stack.Push(c)
+		vm.stack.Push(util.SerializeInt64(int64(c)))
+	case InstructionMul:
+		b := vm.stack.Pop()
+		a := vm.stack.Pop()
+		c := a.(int) * b.(int)
+		vm.stack.Push(util.SerializeInt64(int64(c)))
+	case InstructionDiv:
+		b := vm.stack.Pop()
+		a := vm.stack.Pop()
+		c := a.(int) / b.(int)
+		vm.stack.Push(util.SerializeInt64(int64(c)))
 	case InstructionPack:
 		n := vm.stack.Pop().(int)
 		b := make([]byte, n)
@@ -94,19 +104,18 @@ func (vm *VM) Exec(instr Instruction) error {
 		}
 		vm.stack.Push(b)
 	case InstructionStore:
-		v := vm.stack.Pop()
-		var value []byte
-		switch v.(type) {
-		case int:
-			value = util.SerializeInt64(int64(v.(int)))
-		case []byte:
-			value = v.([]byte)
-		case byte:
-			value = []byte{v.(byte)}
-		}
 		key := vm.stack.Pop().([]byte)
-		vm.contractState.Put(key, value)
-		fmt.Printf("key: %v, value: %v\n", key, value)
+		v := vm.stack.Pop().([]byte)
+		vm.contractState.Put(key, v)
+		fmt.Printf("key: %v, value: %v\n", key, v)
+	case InstructionGet:
+		key := vm.stack.Pop().([]byte)
+		value, err := vm.contractState.Get(key)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("value: %v\n", value)
+		vm.stack.Push(value)
 	}
 
 	return nil
@@ -121,4 +130,7 @@ const (
 	InstructionPack     Instruction = 0x0d // 13
 	InstructionSub      Instruction = 0x0e // 14
 	InstructionStore    Instruction = 0x0f // 15
+	InstructionGet      Instruction = 0x10 // 16
+	InstructionMul      Instruction = 0x11 // 17
+	InstructionDiv      Instruction = 0x12 // 18
 )

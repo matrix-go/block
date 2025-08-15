@@ -47,8 +47,9 @@ func (bc *Blockchain) AddBlock(block *Block) error {
 		if err := vm.Run(); err != nil {
 			return err
 		}
-		result := vm.stack.Shift()
-		bc.logger.Log("result", result)
+		fmt.Printf("vm state ======> %+v\n", vm.contractState)
+		res := vm.stack.Shift()
+		fmt.Printf("vm result ======> %+v\n", res)
 	}
 	// add block
 	if err := bc.addBlock(block); err != nil {
