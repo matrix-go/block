@@ -19,7 +19,7 @@ func NewBlockValidator() *BlockValidator {
 func (b *BlockValidator) ValidateBlock(bc *Blockchain, block *Block) error {
 	// height of block
 	if bc.HasBlock(block.Height) {
-		return fmt.Errorf("block already in blockchain")
+		return ErrBlockAlreadyInBlockchain
 	}
 	// too high
 	if block.Height != bc.Height()+1 {
@@ -37,7 +37,7 @@ func (b *BlockValidator) ValidateBlock(bc *Blockchain, block *Block) error {
 	}
 	hash := NewHeaderHasher().Hash(header)
 	if block.PrevHash != hash {
-		return fmt.Errorf("previous datahash not valid")
+		return ErrBlockPrevHashInvalid
 	}
 	return nil
 }
@@ -45,5 +45,7 @@ func (b *BlockValidator) ValidateBlock(bc *Blockchain, block *Block) error {
 var _ Validator = (*BlockValidator)(nil)
 
 var (
-	ErrBlockTooHigh = errors.New("block too high")
+	ErrBlockTooHigh             = errors.New("block too high")
+	ErrBlockAlreadyInBlockchain = errors.New("block already in blockchain")
+	ErrBlockPrevHashInvalid     = errors.New("block prev hash invalid")
 )

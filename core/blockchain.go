@@ -87,3 +87,8 @@ func (bc *Blockchain) GetHeader(height uint64) (*Header, error) {
 	defer bc.lock.RUnlock()
 	return bc.headers[height], nil
 }
+
+func (bc *Blockchain) Version() uint32 {
+	header, _ := bc.GetHeader(bc.Height())
+	return header.Version
+}

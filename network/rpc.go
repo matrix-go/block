@@ -48,8 +48,28 @@ func DefaultRPCDecodeFunc(rpc RPC) (*DecodeMessage, error) {
 			From: rpc.From,
 			Data: block,
 		}, nil
+	case MessageTypeGetStatus:
+		return &DecodeMessage{From: rpc.From, Data: NewGetStatusMessage()}, nil
+	case MessageTypeStatus:
+		// get status of current block
+		stsMsg := NewStatusMessage()
+		if err := gob.NewDecoder(bytes.NewReader(msg.Data)).Decode(stsMsg); err != nil {
+			return nil, fmt.Errorf("failed to decode status: %s", err)
+		}
+		return &DecodeMessage{
+			From: rpc.From,
+			Data: stsMsg,
+		}, nil
 	case MessageTypeGetBlock:
 		// get all blocks
+		gblMsg := NewGetBlocksMessage(0, 0)
+		if err := gob.NewDecoder(bytes.NewReader(msg.Data)).Decode(gblMsg); err != nil {
+			return nil, fmt.Errorf("failed to decode block: %s", err)
+		}
+		return &DecodeMessage{
+			From: rpc.From,
+			Data: gblMsg,
+		}, nil
 	default:
 		return nil, fmt.Errorf("uinknown message type %v", msg.Header)
 	}
@@ -83,7 +103,9 @@ func (m *Message) Bytes() []byte {
 type MessageType byte
 
 const (
-	MessageTypeTx       MessageType = 0x01
-	MessageTypeBlock    MessageType = 0x02
-	MessageTypeGetBlock MessageType = 0x03
+	MessageTypeTx        MessageType = 0x01
+	MessageTypeBlock     MessageType = 0x02
+	MessageTypeGetBlock  MessageType = 0x03
+	MessageTypeStatus    MessageType = 0x04
+	MessageTypeGetStatus MessageType = 0x05
 )

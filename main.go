@@ -5,33 +5,41 @@ import (
 	"fmt"
 	"github.com/matrix-go/block/core"
 	"github.com/matrix-go/block/crypto"
-	"github.com/sirupsen/logrus"
 	"time"
 
 	"github.com/matrix-go/block/network"
 )
 
-func main() {
-	localTr := network.NewLocalTransport("LOCAL")
-	remoteTrA := network.NewLocalTransport("REMOTE_1")
-	remoteTrB := network.NewLocalTransport("REMOTE_2")
-	remoteTrC := network.NewLocalTransport("REMOTE_3")
-	_ = localTr.Connect(remoteTrA)
-	_ = remoteTrA.Connect(remoteTrB)
-	_ = remoteTrB.Connect(remoteTrC)
-	_ = remoteTrA.Connect(localTr)
+var transports = []network.Transport{
+	network.NewLocalTransport("LOCAL"),
+	network.NewLocalTransport("REMOTE_1"),
+	network.NewLocalTransport("REMOTE_2"),
+	network.NewLocalTransport("REMOTE_3"),
+	network.NewLocalTransport("LATE_REMOTE"),
+}
 
-	if err := initRemoteSevers(remoteTrA, remoteTrB, remoteTrC); err != nil {
+func main() {
+	if err := initRemoteSevers(transports[1:]...); err != nil {
 		panic(err)
 	}
 
+	localTr := transports[0]
+	//remoteTr := transports[1]
+	//go func() {
+	//	for {
+	//		if err := sendTransaction(remoteTr, localTr.Addr()); err != nil {
+	//			logrus.Error(err)
+	//		}
+	//		time.Sleep(time.Second * 2)
+	//	}
+	//}()
+
+	// mock late server
 	go func() {
-		for {
-			if err := sendTransaction(remoteTrA, localTr.Addr()); err != nil {
-				logrus.Error(err)
-			}
-			time.Sleep(time.Second * 2)
-		}
+		lateTr := transports[len(transports)-1]
+		time.Sleep(time.Second * 6)
+		lateSrv := makeServer("LATE_REMOTE", nil, lateTr)
+		lateSrv.Start()
 	}()
 
 	privateKey, err := crypto.GeneratePrivateKey()
@@ -54,7 +62,8 @@ func initRemoteSevers(trs ...network.Transport) error {
 func makeServer(id string, privateKey *crypto.PrivateKey, tr network.Transport) *network.Server {
 	opt := network.ServerOpt{
 		ID:         id,
-		Transports: []network.Transport{tr},
+		Transport:  tr,
+		Transports: transports,
 		BlockTime:  time.Second * 5,
 		PrivateKey: privateKey,
 	}

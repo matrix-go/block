@@ -70,7 +70,6 @@ func (vm *VM) Run() error {
 }
 
 func (vm *VM) Exec(instr Instruction) error {
-	fmt.Println("executing instruction:", instr)
 	switch instr {
 	case InstructionPushInt:
 		vm.stack.Push(int(vm.data[vm.ip-1]))

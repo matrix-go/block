@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"encoding/gob"
 	"errors"
-	"fmt"
 	"io"
 	"time"
 
@@ -108,7 +107,7 @@ func (b *Block) Sign(privateKey *crypto.PrivateKey) error {
 
 func (b *Block) Verify() error {
 	if b.Signature == nil {
-		return fmt.Errorf("block has no signature")
+		return ErrorBlockHasNoSig
 	}
 	if !b.Signature.Verify(&b.Validator, b.Header.Bytes()) {
 		return ErrBlockVerifyFailed
@@ -158,4 +157,5 @@ func CalculateDataHash(txs []*Transaction) (hash types.Hash, err error) {
 var (
 	ErrBlockVerifyFailed = errors.New("block valid failed")
 	ErrBlockInvalidHash  = errors.New("block has an invalid hash")
+	ErrorBlockHasNoSig   = errors.New("block has no signature")
 )
