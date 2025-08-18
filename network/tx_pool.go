@@ -27,9 +27,9 @@ func (p *TxPool) Add(tx *core.Transaction) error {
 
 	if p.all.Count() == p.maxLength {
 		oldest := p.all.First()
-		p.all.Remove(oldest.Hash(core.NewTransactionHasher()))
+		p.all.Remove(oldest.GetHash(core.NewTransactionHasher()))
 	}
-	txHash := tx.Hash(core.NewTransactionHasher())
+	txHash := tx.GetHash(core.NewTransactionHasher())
 	if !p.all.Contains(txHash) {
 		p.all.Add(tx)
 		p.pending.Add(tx)
@@ -70,7 +70,7 @@ func (t *TxSortedMap) First() *core.Transaction {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 	first := t.txs.Get(0)
-	return t.lookup[first.Hash(core.NewTransactionHasher())]
+	return t.lookup[first.GetHash(core.NewTransactionHasher())]
 }
 
 func (t *TxSortedMap) Remove(hash types.Hash) {
@@ -85,7 +85,7 @@ func (t *TxSortedMap) Remove(hash types.Hash) {
 }
 
 func (t *TxSortedMap) Add(tx *core.Transaction) {
-	hash := tx.Hash(core.NewTransactionHasher())
+	hash := tx.GetHash(core.NewTransactionHasher())
 	if contains := t.Contains(hash); contains {
 		return
 	}

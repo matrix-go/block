@@ -3,10 +3,15 @@ package types
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 )
 
 type Hash [32]uint8
+
+func (h Hash) MarshalJSON() ([]byte, error) {
+	return json.Marshal("0x" + h.String())
+}
 
 func (h Hash) IsZero() bool {
 	for _, b := range h {

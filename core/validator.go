@@ -23,7 +23,7 @@ func (b *BlockValidator) ValidateBlock(bc *Blockchain, block *Block) error {
 	}
 	// too high
 	if block.Height != bc.Height()+1 {
-		return fmt.Errorf("block %s, %w", block.Hash(NewHeaderHasher()), ErrBlockTooHigh)
+		return fmt.Errorf("block %s, %w", block.GetHash(NewHeaderHasher()), ErrBlockTooHigh)
 	}
 
 	// verify block
@@ -47,5 +47,5 @@ var _ Validator = (*BlockValidator)(nil)
 var (
 	ErrBlockTooHigh             = errors.New("block too high")
 	ErrBlockAlreadyInBlockchain = errors.New("block already in blockchain")
-	ErrBlockPrevHashInvalid     = errors.New("block prev hash invalid")
+	ErrBlockPrevHashInvalid     = errors.New("block prev GetHash invalid")
 )

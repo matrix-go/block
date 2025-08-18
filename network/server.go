@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/go-kit/log"
+	"github.com/matrix-go/block/api"
 	"github.com/matrix-go/block/core"
 	"github.com/sirupsen/logrus"
 	"os"
@@ -24,6 +25,7 @@ type ServerOpt struct {
 	BlockTime     time.Duration
 	PrivateKey    *crypto.PrivateKey
 	SeedPeers     []Peer // peers wait for connection to sync block status
+	ApiAddr       string
 }
 type Server struct {
 	ServerOpt
@@ -37,6 +39,7 @@ type Server struct {
 	blockTime   time.Duration
 	rpcChan     chan RPC
 	quit        chan struct{}
+	apiServer   *api.Server
 }
 
 func (s *Server) Quit() {
@@ -59,6 +62,7 @@ func NewServer(opt ServerOpt) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	server := &Server{
 		ServerOpt: opt,
 		peerMap:   make(map[NetAddr]Peer), // already connected peers
@@ -71,6 +75,14 @@ func NewServer(opt ServerOpt) (*Server, error) {
 		blockTime:   opt.BlockTime,
 		rpcChan:     make(chan RPC, 1024),
 		quit:        make(chan struct{}, 1),
+	}
+
+	if opt.ApiAddr != "" {
+		apiServerConfig := api.ServerConfig{
+			Logger: opt.Logger,
+			Addr:   opt.ApiAddr,
+		}
+		server.apiServer = api.NewServer(apiServerConfig, chain)
 	}
 
 	if opt.RPCProcessor == nil {
@@ -89,6 +101,10 @@ func (s *Server) Start() {
 	time.Sleep(time.Second)
 
 	s.bootstrapNetwork()
+
+	if s.ApiAddr != "" {
+		go s.apiServer.Start()
+	}
 
 quit:
 	for {
@@ -244,7 +260,7 @@ func (s *Server) createNewBlock() error {
 
 func (s *Server) processTransaction(tx *core.Transaction) error {
 
-	txHash := tx.Hash(core.NewTransactionHasher())
+	txHash := tx.GetHash(core.NewTransactionHasher())
 	if s.memPool.Contains(txHash) {
 		//s.Logger.Log("msg", "mempool already has tx", "hash", txHash)
 		return nil
@@ -367,6 +383,11 @@ func (s *Server) processSyncBlocks(t *BlockMessage) error {
 		}
 	}
 	return nil
+}
+
+func (s *Server) Stop() {
+	//s.apiServer.Stop()
+	//s.Transport.Stop()
 }
 
 func genesisBlock() *core.Block {

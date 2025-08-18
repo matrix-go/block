@@ -4,6 +4,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"io"
 )
@@ -88,6 +89,10 @@ func (k PublicKey) Address() Address {
 	}
 }
 
+func (k PublicKey) MarshalJSON() ([]byte, error) {
+	return json.Marshal(k.String())
+}
+
 type Signature struct {
 	Value []byte
 }
@@ -102,6 +107,10 @@ func (s Signature) String() string {
 
 func (s Signature) Verify(pubKey *PublicKey, msg []byte) bool {
 	return ed25519.Verify(pubKey.Key, msg, s.Value)
+}
+
+func (s Signature) MarshalJSON() ([]byte, error) {
+	return json.Marshal(s.String())
 }
 
 type Address struct {

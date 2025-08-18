@@ -12,9 +12,9 @@ type Transaction struct {
 	Signature *crypto.Signature
 
 	// first local node see the tx
-	firstSeen int64
-	// cached hash
-	hash types.Hash
+	Timestamp int64
+	// cached Hash
+	Hash types.Hash
 }
 
 func NewTransaction(data []byte) *Transaction {
@@ -42,11 +42,11 @@ func (tx *Transaction) Verify() error {
 	return fmt.Errorf("transaction signature verified failed")
 }
 
-func (tx *Transaction) Hash(hasher Hasher[*Transaction]) types.Hash {
-	if tx.hash.IsZero() {
-		tx.hash = hasher.Hash(tx)
+func (tx *Transaction) GetHash(hasher Hasher[*Transaction]) types.Hash {
+	if tx.Hash.IsZero() {
+		tx.Hash = hasher.Hash(tx)
 	}
-	return tx.hash
+	return tx.Hash
 }
 
 func (tx *Transaction) Encode(enc Encoder[*Transaction]) error {
@@ -58,9 +58,9 @@ func (tx *Transaction) Decode(dec Decoder[*Transaction]) error {
 }
 
 func (tx *Transaction) FirstSeen() int64 {
-	return tx.firstSeen
+	return tx.Timestamp
 }
 
 func (tx *Transaction) SetFirstSeen(t int64) {
-	tx.firstSeen = t
+	tx.Timestamp = t
 }

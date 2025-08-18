@@ -68,8 +68,8 @@ type Block struct {
 	Validator crypto.PublicKey
 	Signature *crypto.Signature
 
-	// cached hash of block
-	hash types.Hash
+	// cached Hash of block
+	Hash types.Hash
 }
 
 func NewBlock(header *Header, txs []*Transaction) *Block {
@@ -128,11 +128,11 @@ func (b *Block) Verify() error {
 	return nil
 }
 
-func (b *Block) Hash(hasher Hasher[*Header]) types.Hash {
-	if b.hash.IsZero() {
-		b.hash = hasher.Hash(b.Header)
+func (b *Block) GetHash(hasher Hasher[*Header]) types.Hash {
+	if b.Hash.IsZero() {
+		b.Hash = hasher.Hash(b.Header)
 	}
-	return b.hash
+	return b.Hash
 }
 
 func (b *Block) Encode(enc Encoder[*Block]) error {
@@ -156,6 +156,6 @@ func CalculateDataHash(txs []*Transaction) (hash types.Hash, err error) {
 
 var (
 	ErrBlockVerifyFailed = errors.New("block valid failed")
-	ErrBlockInvalidHash  = errors.New("block has an invalid hash")
+	ErrBlockInvalidHash  = errors.New("block has an invalid GetHash")
 	ErrorBlockHasNoSig   = errors.New("block has no signature")
 )

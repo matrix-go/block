@@ -1,0 +1,26 @@
+
+### get block
+GET http://localhost:9000/block/0
+Accept: application/json
+
+###
+
+### get block by hash
+GET http://localhost:9000/block/0x6763efe41013c057f5a57cac233dc496ceac107b33dcab85712ed28576f73b48
+Accept: application/json
+
+###
+
+
+### get tx by height
+GET http://localhost:9000/tx/1
+Accept: application/json
+
+###
+
+### get tx by hash
+GET http://localhost:9000/tx/0x3655ea4b1f6d380118ceef35c6bde07fc6a31d9144bd833025963e7c2a3b9c31
+Accept: application/json
+
+###
+

@@ -81,13 +81,13 @@ func TestBlockHeaderEncodeAndDecode(t *testing.T) {
 
 func TestBlockEncodeAndDecode(t *testing.T) {
 	// TODO: encode and decode
-	// b := randomBlock(0, types.Hash{})
+	// b := randomBlock(0, types.GetHash{})
 	// buf := &bytes.Buffer{}
 	// encDec := NewBLockEncoderDecoder()
 	// err := b.Encode(buf, encDec)
 	// require.NoError(t, err)
 
-	// bDecode := randomBlock(0, types.Hash{})
+	// bDecode := randomBlock(0, types.GetHash{})
 	// err = bDecode.Decode(buf, encDec)
 	// require.NoError(t, err)
 	// assert.Equal(t, b.Header, bDecode.Header)
@@ -101,9 +101,9 @@ func TestBlockEncodeAndDecode(t *testing.T) {
 func TestBlockHash(t *testing.T) {
 	b := randomBlockWithSignature(0, types.Hash{})
 	hasher := NewHeaderHasher()
-	hash := b.Hash(hasher)
+	hash := b.GetHash(hasher)
 	assert.False(t, hash.IsZero())
-	t.Logf("block hash: ====> %v", hash)
+	t.Logf("block GetHash: ====> %v", hash)
 }
 
 func TestDecodeEncodeBlock(t *testing.T) {
@@ -116,7 +116,7 @@ func TestDecodeEncodeBlock(t *testing.T) {
 	err = block.Decode(NewGobBlockDecoder(&buf))
 	require.NoError(t, err)
 
-	assert.Equal(t, b.Hash(NewHeaderHasher()), block.Hash(NewHeaderHasher()))
+	assert.Equal(t, b.GetHash(NewHeaderHasher()), block.GetHash(NewHeaderHasher()))
 	assert.Equal(t, b.Nonce, block.Nonce)
 	assert.Equal(t, b.PrevHash, block.PrevHash)
 	assert.Equal(t, b.Timestamp, block.Timestamp)
