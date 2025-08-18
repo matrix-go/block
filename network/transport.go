@@ -2,10 +2,21 @@ package network
 
 type NetAddr string
 
-type Transport interface {
-	Consume() <-chan RPC
-	Connect(Transport) error
-	SendMessage(to NetAddr, msg []byte) error
+func (a NetAddr) String() string {
+	return string(a)
+}
+
+type Peer interface {
 	Addr() NetAddr
-	Broadcast(msg []byte) error
+	Write(addr NetAddr, msg []byte) error
+}
+
+type Transport interface {
+	Start() error
+	Stop() error
+	Consume() <-chan RPC
+	ConsumePeer() <-chan Peer
+	Connect(peer Peer) error // peer should be pointer value
+	SendMessage(to Peer, msg []byte) error
+	Addr() NetAddr
 }

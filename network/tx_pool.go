@@ -29,8 +29,8 @@ func (p *TxPool) Add(tx *core.Transaction) error {
 		oldest := p.all.First()
 		p.all.Remove(oldest.Hash(core.NewTransactionHasher()))
 	}
-
-	if !p.all.Contains(tx.Hash(core.NewTransactionHasher())) {
+	txHash := tx.Hash(core.NewTransactionHasher())
+	if !p.all.Contains(txHash) {
 		p.all.Add(tx)
 		p.pending.Add(tx)
 	}

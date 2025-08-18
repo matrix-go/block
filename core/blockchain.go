@@ -9,6 +9,7 @@ import (
 type Blockchain struct {
 	logger    log.Logger
 	headers   []*Header
+	blocks    []*Block
 	storage   Storage
 	validator Validator
 
@@ -63,6 +64,7 @@ func (bc *Blockchain) AddBlock(block *Block) error {
 func (bc *Blockchain) addBlock(block *Block) error {
 	bc.lock.Lock()
 	bc.headers = append(bc.headers, block.Header)
+	bc.blocks = append(bc.blocks, block)
 	bc.lock.Unlock()
 	bc.logger.Log("msg", "add new block", "height", block.Height, "hash", block.Hash(NewHeaderHasher()), "txLen", len(block.Transactions))
 	return bc.storage.Put(block)
@@ -86,6 +88,15 @@ func (bc *Blockchain) GetHeader(height uint64) (*Header, error) {
 	bc.lock.RLock()
 	defer bc.lock.RUnlock()
 	return bc.headers[height], nil
+}
+
+func (bc *Blockchain) GetBlock(height uint64) (*Block, error) {
+	if height > bc.Height() {
+		return nil, fmt.Errorf("given height too high")
+	}
+	bc.lock.RLock()
+	defer bc.lock.RUnlock()
+	return bc.blocks[height], nil
 }
 
 func (bc *Blockchain) Version() uint32 {

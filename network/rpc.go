@@ -64,11 +64,20 @@ func DefaultRPCDecodeFunc(rpc RPC) (*DecodeMessage, error) {
 		// get all blocks
 		gblMsg := NewGetBlocksMessage(0, 0)
 		if err := gob.NewDecoder(bytes.NewReader(msg.Data)).Decode(gblMsg); err != nil {
-			return nil, fmt.Errorf("failed to decode block: %s", err)
+			return nil, fmt.Errorf("failed to decode get block: %s", err)
 		}
 		return &DecodeMessage{
 			From: rpc.From,
 			Data: gblMsg,
+		}, nil
+	case MessageTypeBlocks:
+		blkMsg := NewBlockMessage(nil)
+		if err := gob.NewDecoder(bytes.NewReader(msg.Data)).Decode(blkMsg); err != nil {
+			return nil, fmt.Errorf("failed to decode block: %s", err)
+		}
+		return &DecodeMessage{
+			From: rpc.From,
+			Data: blkMsg,
 		}, nil
 	default:
 		return nil, fmt.Errorf("uinknown message type %v", msg.Header)
@@ -106,6 +115,7 @@ const (
 	MessageTypeTx        MessageType = 0x01
 	MessageTypeBlock     MessageType = 0x02
 	MessageTypeGetBlock  MessageType = 0x03
+	MessageTypeBlocks    MessageType = 0x06
 	MessageTypeStatus    MessageType = 0x04
 	MessageTypeGetStatus MessageType = 0x05
 )

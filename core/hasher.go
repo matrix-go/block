@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"crypto/sha256"
 
 	"github.com/matrix-go/block/types"
@@ -44,7 +45,11 @@ func NewTransactionHasher() *TransactionHasher {
 }
 
 func (h *TransactionHasher) Hash(tx *Transaction) types.Hash {
-	return sha256.Sum256(tx.Data)
+	var buf bytes.Buffer
+	if err := tx.Encode(NewTxEncoder(&buf)); err != nil {
+		panic(err)
+	}
+	return sha256.Sum256(buf.Bytes())
 }
 
 var _ Hasher[*Transaction] = (*TransactionHasher)(nil)

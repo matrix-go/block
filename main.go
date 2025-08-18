@@ -5,6 +5,10 @@ import (
 	"fmt"
 	"github.com/matrix-go/block/core"
 	"github.com/matrix-go/block/crypto"
+	"github.com/sirupsen/logrus"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/matrix-go/block/network"
@@ -18,52 +22,124 @@ var transports = []network.Transport{
 	network.NewLocalTransport("LATE_REMOTE"),
 }
 
+var peers []network.Peer
+
 func main() {
-	if err := initRemoteSevers(transports[1:]...); err != nil {
-		panic(err)
+
+	//servers := initLocalTransportServers()
+
+	servers := initTcpTransportSevers()
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGTERM, syscall.SIGKILL, syscall.SIGINT)
+	// Block until a signal is received.
+	s := <-c
+	for _, server := range servers {
+		server.Stop()
 	}
+	fmt.Println("shut down:", s)
+
+}
+
+func initLocalTransportServers() []network.Transport {
+
+	peers = []network.Peer{}
+	for _, tr := range transports {
+		peers = append(peers, network.NewLocalPeer(tr.Addr(), tr.(*network.LocalTransport).RpcChan))
+	}
+	//if err := initRemoteSevers(transports[1:]...); err != nil {
+	//	panic(err)
+	//}
 
 	localTr := transports[0]
-	//remoteTr := transports[1]
-	//go func() {
-	//	for {
-	//		if err := sendTransaction(remoteTr, localTr.Addr()); err != nil {
-	//			logrus.Error(err)
-	//		}
-	//		time.Sleep(time.Second * 2)
-	//	}
-	//}()
+	localPeer := peers[0]
 
-	// mock late server
-	go func() {
-		lateTr := transports[len(transports)-1]
-		time.Sleep(time.Second * 6)
-		lateSrv := makeServer("LATE_REMOTE", nil, lateTr)
-		lateSrv.Start()
-	}()
-
+	// local validator node
 	privateKey, err := crypto.GeneratePrivateKey()
 	if err != nil {
 		panic(err)
 	}
-	localServer := makeServer("LOCAL", privateKey, localTr)
-	localServer.Start()
+	localServer := makeServer("LOCAL", privateKey, localTr, []network.Peer{})
+	go localServer.Start()
+
+	// remote node send transaction
+	remoteTr := transports[1]
+	remoteSrv := makeServer("REMOTE_1", nil, remoteTr, []network.Peer{localPeer})
+	go remoteSrv.Start()
+	go func() {
+		time.Sleep(1 * time.Second)
+		for {
+			if err := sendTransaction(remoteTr, localPeer); err != nil {
+				logrus.Error(err)
+			}
+			time.Sleep(time.Second * 2)
+		}
+	}()
+
+	// mock late server
+	lateTr := transports[len(transports)-1]
+	lateSrv := makeServer("LATE_REMOTE", nil, lateTr, []network.Peer{localPeer})
+	time.Sleep(time.Second * 6)
+	go lateSrv.Start()
+
+	return transports
 }
 
+func initTcpTransportSevers() []network.Transport {
+	localTr := network.NewTcpTransport(":8080")
+	localPeer := network.NewTcpPeer(localTr.Addr())
+
+	// local validator node
+	privateKey, err := crypto.GeneratePrivateKey()
+	if err != nil {
+		panic(err)
+	}
+	localServer := makeServer("LOCAL", privateKey, localTr, nil)
+	go localServer.Start()
+	time.Sleep(1 * time.Second)
+
+	// remote node to send transactions
+	//remoteTr := network.NewTcpTransport(":8082")
+	//remotePeer := network.NewTcpPeer(remoteTr.Addr())
+	//remoteServer := makeServer("REMOTE", nil, remoteTr, []network.Peer{localPeer})
+	//go remoteServer.Start()
+	//go func() {
+	//	time.Sleep(2 * time.Second)
+	//	for {
+	//		if err := sendTransaction(remoteTr, localPeer); err != nil {
+	//			logrus.Error(err)
+	//		}
+	//		time.Sleep(time.Second)
+	//	}
+	//}()
+
+	// late node to sync block
+	lateTr := network.NewTcpTransport(":8081")
+	//latePeer := network.NewTcpPeer(lateTr.Addr())
+	lateServer := makeServer("LATE", nil, lateTr,
+		//[]network.Peer{remotePeer},
+		[]network.Peer{localPeer},
+	)
+	time.Sleep(time.Second * 10)
+	go lateServer.Start()
+	time.Sleep(1 * time.Second)
+
+	return []network.Transport{localTr}
+}
 func initRemoteSevers(trs ...network.Transport) error {
 	for idx, tr := range trs {
 		id := fmt.Sprintf("REMOTE_%d", idx+1)
-		s := makeServer(id, nil, tr)
+		s := makeServer(id, nil, tr, peers)
 		go s.Start()
 	}
 	return nil
 }
 
-func makeServer(id string, privateKey *crypto.PrivateKey, tr network.Transport) *network.Server {
+func makeServer(id string, privateKey *crypto.PrivateKey, tr network.Transport, peers []network.Peer) *network.Server {
 	opt := network.ServerOpt{
 		ID:         id,
 		Transport:  tr,
-		Transports: transports,
+		SeedPeers:  peers,
 		BlockTime:  time.Second * 5,
 		PrivateKey: privateKey,
 	}
@@ -75,7 +151,7 @@ func makeServer(id string, privateKey *crypto.PrivateKey, tr network.Transport) 
 	return server
 }
 
-func sendTransaction(tr network.Transport, to network.NetAddr) error {
+func sendTransaction(tr network.Transport, to network.Peer) error {
 	tx := core.NewTransaction(contract())
 	privateKey, err := crypto.GeneratePrivateKey()
 	if err != nil {

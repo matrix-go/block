@@ -1,5 +1,7 @@
 package network
 
+import "github.com/matrix-go/block/core"
+
 type GetStatusMessage struct {
 }
 
@@ -26,5 +28,15 @@ func NewGetBlocksMessage(from, to uint64) *GetBlocksMessage {
 	return &GetBlocksMessage{
 		From: from,
 		To:   to,
+	}
+}
+
+type BlockMessage struct {
+	Data []*core.Block
+}
+
+func NewBlockMessage(data []*core.Block) *BlockMessage {
+	return &BlockMessage{
+		Data: data,
 	}
 }
