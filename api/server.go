@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/go-kit/log"
 	"github.com/matrix-go/block/core"
@@ -19,14 +20,16 @@ type ServerConfig struct {
 
 type Server struct {
 	ServerConfig
-	chain *core.Blockchain
-	srv   *http.Server
+	chain  *core.Blockchain
+	srv    *http.Server
+	txChan chan *core.Transaction
 }
 
-func NewServer(cfg ServerConfig, chain *core.Blockchain) *Server {
+func NewServer(cfg ServerConfig, chain *core.Blockchain, txChan chan *core.Transaction) *Server {
 	return &Server{
 		ServerConfig: cfg,
 		chain:        chain,
+		txChan:       txChan,
 	}
 }
 
@@ -48,6 +51,7 @@ func (s *Server) SetRouter() *gin.Engine {
 	eg := gin.Default()
 	eg.GET("/block/:hash", s.handleGetBlock)
 	eg.GET("/tx/:hash", s.handleGetTransaction)
+	eg.POST("/tx", s.handlePostTransaction)
 	eg.GET("/test", s.handleTest)
 	return eg
 }
@@ -138,5 +142,21 @@ func (s *Server) handleGetTransaction(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{
 		"msg":          "success",
 		"transactions": transactions,
+	})
+}
+
+func (s *Server) handlePostTransaction(ctx *gin.Context) {
+	var tx core.Transaction
+	if err := tx.Decode(core.NewTxDecoder(ctx.Request.Body)); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"msg":   "failed to decode transaction",
+			"error": err,
+		})
+		return
+	}
+	fmt.Printf("got tx %+v\n", tx)
+	s.txChan <- &tx
+	ctx.JSON(http.StatusOK, gin.H{
+		"msg": "success",
 	})
 }

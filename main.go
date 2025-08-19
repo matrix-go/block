@@ -6,6 +6,7 @@ import (
 	"github.com/matrix-go/block/core"
 	"github.com/matrix-go/block/crypto"
 	"github.com/sirupsen/logrus"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -52,7 +53,7 @@ func initLocalTransportServers() []*network.Server {
 	//}
 
 	localTr := transports[0]
-	localPeer := peers[0]
+	//localPeer := peers[0]
 
 	// local validator node
 	privateKey, err := crypto.GeneratePrivateKey()
@@ -63,39 +64,49 @@ func initLocalTransportServers() []*network.Server {
 	go localSrv.Start()
 
 	// remote node send transaction
-	remoteTr := transports[1]
-	remoteSrv := makeServer("REMOTE_1", nil, remoteTr, []network.Peer{localPeer}, "")
-	go remoteSrv.Start()
+	//remoteTr := transports[1]
+	//remoteSrv := makeServer("REMOTE_1", nil, remoteTr, []network.Peer{localPeer}, "")
+	//go remoteSrv.Start()
+	//go func() {
+	//	time.Sleep(1 * time.Second)
+	//	for {
+	//		if err := sendTransaction(remoteTr, localPeer); err != nil {
+	//			logrus.Error(err)
+	//		}
+	//		time.Sleep(time.Second * 2)
+	//	}
+	//}()
+
+	// mock late server
+	//lateTr := transports[len(transports)-1]
+	//lateSrv := makeServer("LATE_REMOTE", nil, lateTr, []network.Peer{localPeer}, "")
+	//time.Sleep(time.Second * 6)
+	//go lateSrv.Start()
+	//
+	//// localPeer connect to late server
+	//latePeer := peers[len(peers)-1]
+	//localTr.Connect(latePeer)
+	//
+	//// localPeer connect to remote server
+	//remotePeer := peers[1]
+	//localTr.Connect(remotePeer)
+
 	go func() {
-		time.Sleep(1 * time.Second)
+		tc := time.NewTicker(time.Second * 2)
 		for {
-			if err := sendTransaction(remoteTr, localPeer); err != nil {
+			<-tc.C
+			if err := sendTransactionThroughAPI(); err != nil {
 				logrus.Error(err)
 			}
-			time.Sleep(time.Second * 2)
 		}
 	}()
 
-	// mock late server
-	lateTr := transports[len(transports)-1]
-	lateSrv := makeServer("LATE_REMOTE", nil, lateTr, []network.Peer{localPeer}, "")
-	time.Sleep(time.Second * 6)
-	go lateSrv.Start()
-
-	// localPeer connect to late server
-	latePeer := peers[len(peers)-1]
-	localTr.Connect(latePeer)
-
-	// localPeer connect to remote server
-	remotePeer := peers[1]
-	localTr.Connect(remotePeer)
-
-	return []*network.Server{localSrv, remoteSrv, lateSrv}
+	return []*network.Server{localSrv}
 }
 
 func initTcpTransportSevers() []*network.Server {
 	localTr := network.NewTcpTransport(":8080")
-	localPeer := network.NewTcpPeer(localTr.Addr())
+	//localPeer := network.NewTcpPeer(localTr.Addr())
 
 	// local validator node
 	privateKey, err := crypto.GeneratePrivateKey()
@@ -108,18 +119,18 @@ func initTcpTransportSevers() []*network.Server {
 	time.Sleep(1 * time.Second)
 
 	// remote node to send transactions
-	remoteTr := network.NewTcpTransport(":8082")
-	remoteServer := makeServer("REMOTE", nil, remoteTr, []network.Peer{localPeer}, "")
-	go remoteServer.Start()
-	go func() {
-		time.Sleep(2 * time.Second)
-		for {
-			if err := sendTransaction(remoteTr, localPeer); err != nil {
-				logrus.Error(err)
-			}
-			time.Sleep(time.Second)
-		}
-	}()
+	//remoteTr := network.NewTcpTransport(":8082")
+	//remoteServer := makeServer("REMOTE", nil, remoteTr, []network.Peer{localPeer}, "")
+	//go remoteServer.Start()
+	//go func() {
+	//	time.Sleep(2 * time.Second)
+	//	for {
+	//		if err := sendTransaction(remoteTr, localPeer); err != nil {
+	//			logrus.Error(err)
+	//		}
+	//		time.Sleep(time.Second)
+	//	}
+	//}()
 
 	// late node to sync block
 	//lateTr := network.NewTcpTransport(":8081")
@@ -132,7 +143,17 @@ func initTcpTransportSevers() []*network.Server {
 	//go lateServer.Start()
 	//time.Sleep(1 * time.Second)
 
-	return []*network.Server{localServer, remoteServer}
+	go func() {
+		tc := time.NewTicker(time.Second * 2)
+		for {
+			<-tc.C
+			if err := sendTransactionThroughAPI(); err != nil {
+				logrus.Error(err)
+			}
+		}
+	}()
+
+	return []*network.Server{localServer}
 }
 func initRemoteSevers(trs ...network.Transport) error {
 	for idx, tr := range trs {
@@ -175,6 +196,35 @@ func sendTransaction(tr network.Transport, to network.Peer) error {
 	}
 	msg := network.NewMessage(network.MessageTypeTx, buf.Bytes())
 	return tr.SendMessage(to, msg.Bytes())
+}
+
+func sendTransactionThroughAPI() error {
+	tx := core.NewTransaction(contract())
+	privateKey, err := crypto.GeneratePrivateKey()
+	if err != nil {
+		return fmt.Errorf("failed to generate private key: %s", err)
+	}
+	if err = tx.Sign(privateKey); err != nil {
+		return fmt.Errorf("failed to sign tx: %s", err)
+	}
+	var buf bytes.Buffer
+	if err := tx.Encode(core.NewTxEncoder(&buf)); err != nil {
+		return fmt.Errorf("failed to encode tx: %s", err)
+	}
+	req, err := http.NewRequest("POST", "http://localhost:9000/tx", &buf)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %s", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send tx: %s", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to send tx: %s", resp.Status)
+	}
+	return nil
 }
 
 func contract() []byte {

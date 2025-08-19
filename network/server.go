@@ -37,9 +37,9 @@ type Server struct {
 	memPool     *TxPool
 	chain       *core.Blockchain
 	blockTime   time.Duration
-	rpcChan     chan RPC
 	quit        chan struct{}
 	apiServer   *api.Server
+	txChan      chan *core.Transaction // consume tx from api
 }
 
 func (s *Server) Quit() {
@@ -73,16 +73,18 @@ func NewServer(opt ServerOpt) (*Server, error) {
 		memPool:     NewTxPool(10),
 		chain:       chain,
 		blockTime:   opt.BlockTime,
-		rpcChan:     make(chan RPC, 1024),
 		quit:        make(chan struct{}, 1),
 	}
+
+	txChan := make(chan *core.Transaction, 1)
 
 	if opt.ApiAddr != "" {
 		apiServerConfig := api.ServerConfig{
 			Logger: opt.Logger,
 			Addr:   opt.ApiAddr,
 		}
-		server.apiServer = api.NewServer(apiServerConfig, chain)
+		server.apiServer = api.NewServer(apiServerConfig, chain, txChan)
+		server.txChan = txChan
 	}
 
 	if opt.RPCProcessor == nil {
@@ -109,6 +111,13 @@ func (s *Server) Start() {
 quit:
 	for {
 		select {
+		// consume through api
+		case tx := <-s.txChan:
+			if err := s.processTransaction(tx); err != nil {
+				s.Logger.Log("err", err, "msg", "process transaction from api failed")
+				continue
+			}
+		// consume peer from p2p transport
 		case peer := <-s.Transport.ConsumePeer():
 			s.lock.RLock()
 			_, exists := s.peerMap[peer.Addr()]
@@ -120,6 +129,7 @@ quit:
 			s.lock.Lock()
 			s.peerMap[peer.Addr()] = peer
 			s.lock.Unlock()
+		// consume msg from p2p transport
 		case msg := <-s.Transport.Consume():
 			deMsg, err := s.RPCDecodeFunc(msg)
 			if err != nil {
