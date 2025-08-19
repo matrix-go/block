@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/matrix-go/block/core"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"net/http"
@@ -9,7 +10,8 @@ import (
 )
 
 func TestServer_SetRouter(t *testing.T) {
-	server := NewServer(ServerConfig{}, nil)
+	txChan := make(chan *core.Transaction, 1)
+	server := NewServer(ServerConfig{}, nil, txChan)
 	router := server.SetRouter()
 
 	recorder := httptest.NewRecorder()

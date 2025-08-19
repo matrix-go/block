@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 )
 
@@ -86,12 +87,13 @@ func (t *TcpTransport) acceptLoop() {
 
 func (t *TcpTransport) readLoop(peer *TcpPeer) {
 	for {
+		// TODO: tcp protocol
 		var buf = make([]byte, 4096)
 		n, err := peer.conn.Read(buf)
 		if err != nil {
-			//if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
-			//	return
-			//}
+			if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
+				return
+			}
 			fmt.Printf("tcp readLoop err: %v\n", err)
 			continue
 		}

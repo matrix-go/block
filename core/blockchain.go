@@ -13,14 +13,18 @@ type Blockchain struct {
 	blocks           []*Block
 	blockStore       map[types.Hash][]*Block
 	transactionStore map[types.Hash][]*Transaction
+	collectionStore  map[types.Hash]*CollectionTx
+	mintStore        map[types.Hash]*MintTx
 	storage          Storage
 	validator        Validator
 
 	// TODO: make this an interface
 	contractState *State
 
-	lock   sync.RWMutex
-	txLock sync.RWMutex
+	lock     sync.RWMutex
+	txLock   sync.RWMutex
+	colLock  sync.RWMutex
+	mintLock sync.RWMutex
 }
 
 func NewBlockchain(genesis *Block, logger log.Logger) (*Blockchain, error) {
@@ -31,6 +35,8 @@ func NewBlockchain(genesis *Block, logger log.Logger) (*Blockchain, error) {
 		validator:        NewBlockValidator(),
 		blockStore:       make(map[types.Hash][]*Block),
 		transactionStore: make(map[types.Hash][]*Transaction),
+		collectionStore:  make(map[types.Hash]*CollectionTx),
+		mintStore:        make(map[types.Hash]*MintTx),
 		contractState:    NewState(),
 	}
 	err := bc.addBlock(genesis)
@@ -49,15 +55,50 @@ func (bc *Blockchain) AddBlock(block *Block) error {
 	}
 	// run vm code
 	for _, tx := range block.Transactions {
-		bc.logger.Log("msg", "executing code", "len", len(tx.Data), "GetHash", tx.GetHash(NewTransactionHasher()))
-		vm := NewVM(tx.Data, bc.contractState)
-		if err := vm.Run(); err != nil {
-			return err
+		if len(tx.Data) > 0 {
+			bc.logger.Log("msg", "executing code", "len", len(tx.Data), "Hash", tx.GetHash(NewTransactionHasher()))
+			vm := NewVM(tx.Data, bc.contractState)
+			if err := vm.Run(); err != nil {
+				return err
+			}
+			fmt.Printf("vm state ======> %+v\n", vm.contractState)
+			res := vm.stack.Shift()
+			fmt.Printf("vm result ======> %+v\n", res)
 		}
-		fmt.Printf("vm state ======> %+v\n", vm.contractState)
-		res := vm.stack.Shift()
-		fmt.Printf("vm result ======> %+v\n", res)
+		if tx.InnerTx != nil {
+			switch innerTx := tx.InnerTx.(type) {
+			case *CollectionTx:
+				fmt.Printf("tx.InnerTx ======> %+v\n", *innerTx)
+				hash := tx.GetHash(NewTransactionHasher())
+				bc.colLock.RLock()
+				_, exists := bc.collectionStore[hash]
+				bc.colLock.RUnlock()
+				if exists {
+					return fmt.Errorf("collection already exists")
+				}
+				bc.colLock.Lock()
+				bc.collectionStore[hash] = innerTx
+				bc.colLock.Unlock()
+			case *MintTx:
+				bc.colLock.RLock()
+				collection, exists := bc.collectionStore[innerTx.Collection]
+				bc.colLock.RUnlock()
+				if !exists {
+					return fmt.Errorf("collection does not exist")
+				}
+				_ = collection
+				hash := tx.GetHash(NewTransactionHasher())
+				bc.mintLock.Lock()
+				bc.mintStore[hash] = innerTx
+				bc.mintLock.Unlock()
+
+				fmt.Printf("tx.InnerTx mint collection ======> %+v\n", *innerTx)
+			default:
+				return fmt.Errorf("invalid transaction type: %v", tx.InnerType)
+			}
+		}
 	}
+
 	// add block
 	if err := bc.addBlock(block); err != nil {
 		return err
@@ -79,7 +120,7 @@ func (bc *Blockchain) addBlock(block *Block) error {
 	for _, tx := range block.Transactions {
 		bc.transactionStore[tx.Hash] = append(bc.transactionStore[tx.Hash], tx)
 	}
-	bc.logger.Log("msg", "add new block", "height", block.Height, "GetHash", block.GetHash(NewHeaderHasher()), "txLen", len(block.Transactions))
+	bc.logger.Log("msg", "add new block", "height", block.Height, "Hash", block.GetHash(NewHeaderHasher()), "txLen", len(block.Transactions))
 	return bc.storage.Put(block)
 }
 

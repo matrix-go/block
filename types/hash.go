@@ -5,12 +5,33 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 type Hash [32]uint8
 
-func (h Hash) MarshalJSON() ([]byte, error) {
+func (h *Hash) MarshalJSON() ([]byte, error) {
 	return json.Marshal("0x" + h.String())
+}
+
+func (h *Hash) UnmarshalJSON(data []byte) error {
+	var s string
+	err := json.Unmarshal(data, &s)
+	if err != nil {
+		return err
+	}
+	if strings.HasPrefix(s, "0x") {
+		s = s[2:]
+	}
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return err
+	}
+	if len(b) != 32 {
+		return fmt.Errorf("hash length should be 32 bytes, got %d", len(b))
+	}
+	copy(h[:], b)
+	return nil
 }
 
 func (h Hash) IsZero() bool {

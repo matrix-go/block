@@ -2,9 +2,11 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"github.com/matrix-go/block/core"
 	"github.com/matrix-go/block/crypto"
+	"github.com/matrix-go/block/types"
 	"github.com/sirupsen/logrus"
 	"net/http"
 	"os"
@@ -106,7 +108,7 @@ func initLocalTransportServers() []*network.Server {
 
 func initTcpTransportSevers() []*network.Server {
 	localTr := network.NewTcpTransport(":8080")
-	//localPeer := network.NewTcpPeer(localTr.Addr())
+	localPeer := network.NewTcpPeer(localTr.Addr())
 
 	// local validator node
 	privateKey, err := crypto.GeneratePrivateKey()
@@ -132,26 +134,40 @@ func initTcpTransportSevers() []*network.Server {
 	//	}
 	//}()
 
-	// late node to sync block
-	//lateTr := network.NewTcpTransport(":8081")
-	//lateServer := makeServer("LATE", nil, lateTr,
-	//	//[]network.Peer{remotePeer},
-	//	[]network.Peer{localPeer},
-	//	"",
-	//)
-	//time.Sleep(time.Second * 10)
-	//go lateServer.Start()
-	//time.Sleep(1 * time.Second)
+	//go func() {
+	//	tc := time.NewTicker(time.Second * 2)
+	//	for {
+	//		<-tc.C
+	//		if err := sendTransactionThroughAPI(); err != nil {
+	//			logrus.Error(err)
+	//		}
+	//	}
+	//}()
 
-	go func() {
-		tc := time.NewTicker(time.Second * 2)
-		for {
-			<-tc.C
-			if err := sendTransactionThroughAPI(); err != nil {
-				logrus.Error(err)
-			}
-		}
-	}()
+	//collection, err := sendCollectionTxThroughAPI(privateKey)
+	//if err != nil {
+	//	logrus.Error(err)
+	//}
+	//sendTick := time.NewTicker(time.Second)
+	//go func() {
+	//	for i := 0; i < 10; i++ {
+	//		if err = sendMintTxThroughAPI(privateKey, collection); err != nil {
+	//			logrus.Error(err)
+	//		}
+	//		<-sendTick.C
+	//	}
+	//}()
+
+	// late node to sync block
+	lateTr := network.NewTcpTransport(":8081")
+	lateServer := makeServer("LATE", nil, lateTr,
+		//[]network.Peer{remotePeer},
+		[]network.Peer{localPeer},
+		"",
+	)
+	time.Sleep(time.Second * 10)
+	go lateServer.Start()
+	time.Sleep(1 * time.Second)
 
 	return []*network.Server{localServer}
 }
@@ -198,8 +214,94 @@ func sendTransaction(tr network.Transport, to network.Peer) error {
 	return tr.SendMessage(to, msg.Bytes())
 }
 
+func sendCollectionTxThroughAPI(privateKey *crypto.PrivateKey) (hash types.Hash, err error) {
+	collectionTx := &core.CollectionTx{
+		Fee:      200,
+		Metadata: []byte("chicken and egg collection"), // collection name
+	}
+	tx := core.NewTransaction(nil)
+	tx.InnerTx = collectionTx
+	tx.InnerType = core.InnerTxTypeCollection
+
+	if err := tx.Sign(privateKey); err != nil {
+		return hash, fmt.Errorf("failed to sign tx: %s", err)
+	}
+	var buf bytes.Buffer
+	if err := tx.Encode(core.NewTxEncoder(&buf)); err != nil {
+		return hash, fmt.Errorf("failed to encode tx: %s", err)
+	}
+	req, err := http.NewRequest("POST", "http://localhost:9000/tx", &buf)
+	if err != nil {
+		return hash, fmt.Errorf("failed to create request: %s", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return hash, fmt.Errorf("failed to send tx: %s", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return hash, fmt.Errorf("failed to send tx: %s", resp.Status)
+	}
+	return tx.GetHash(core.NewTransactionHasher()), nil
+}
+
+func sendMintTxThroughAPI(privateKey *crypto.PrivateKey, collection types.Hash) error {
+
+	metadata := map[string]any{
+		"power":  8,
+		"health": 100,
+		"color":  "green",
+		"rare":   "yes",
+	}
+	var metaBuf bytes.Buffer
+	if err := json.NewEncoder(&metaBuf).Encode(&metadata); err != nil {
+		return fmt.Errorf("failed to decode metadata: %s", err)
+	}
+
+	mintTx := &core.MintTx{
+		Fee:             200,
+		Metadata:        metaBuf.Bytes(),    // nft metadata
+		NFT:             types.RandomHash(), // hash of jpeg or something
+		Collection:      collection,
+		CollectionOwner: *privateKey.PublicKey(),
+	}
+	tx := core.NewTransaction(nil)
+	tx.InnerTx = mintTx
+	tx.InnerType = core.InnerTxTypeMint
+
+	if err := tx.Sign(privateKey); err != nil {
+		return fmt.Errorf("failed to sign tx: %s", err)
+	}
+	var bodyBuf bytes.Buffer
+	if err := tx.Encode(core.NewTxEncoder(&bodyBuf)); err != nil {
+		return fmt.Errorf("failed to encode tx: %s", err)
+	}
+	req, err := http.NewRequest("POST", "http://localhost:9000/tx", &bodyBuf)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %s", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send tx: %s", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to send tx: %s", resp.Status)
+	}
+	return nil
+}
+
 func sendTransactionThroughAPI() error {
+	//collectionTx := &core.CollectionTx{
+	//	Fee:      200,
+	//	Metadata: []byte("chicken and egg collection"), // collection name
+	//}
 	tx := core.NewTransaction(contract())
+	//tx.InnerTx = collectionTx
+	//tx.InnerType = core.InnerTxTypeCollection
+
 	privateKey, err := crypto.GeneratePrivateKey()
 	if err != nil {
 		return fmt.Errorf("failed to generate private key: %s", err)

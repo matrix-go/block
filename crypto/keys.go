@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"strings"
 )
 
 const (
@@ -89,8 +90,24 @@ func (k PublicKey) Address() Address {
 	}
 }
 
-func (k PublicKey) MarshalJSON() ([]byte, error) {
+func (k *PublicKey) MarshalJSON() ([]byte, error) {
 	return json.Marshal(k.String())
+}
+
+func (k *PublicKey) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	if strings.HasPrefix(s, "0x") {
+		s = s[2:]
+	}
+	key, err := hex.DecodeString(s)
+	if err != nil {
+		return err
+	}
+	k.Key = key
+	return nil
 }
 
 type Signature struct {
@@ -109,8 +126,24 @@ func (s Signature) Verify(pubKey *PublicKey, msg []byte) bool {
 	return ed25519.Verify(pubKey.Key, msg, s.Value)
 }
 
-func (s Signature) MarshalJSON() ([]byte, error) {
+func (s *Signature) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.String())
+}
+
+func (s *Signature) UnmarshalJSON(data []byte) error {
+	var str string
+	if err := json.Unmarshal(data, &str); err != nil {
+		return err
+	}
+	if strings.HasPrefix(str, "0x") {
+		str = str[2:]
+	}
+	val, err := hex.DecodeString(str)
+	if err != nil {
+		return err
+	}
+	s.Value = val
+	return nil
 }
 
 type Address struct {

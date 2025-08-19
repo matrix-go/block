@@ -33,6 +33,28 @@ func TestTxEncodeAndDecode(t *testing.T) {
 	require.Equal(t, *originTx, tx)
 }
 
+func TestNFTTransaction(t *testing.T) {
+	collectionTx := &CollectionTx{
+		Fee:      200,
+		Metadata: []byte("this is a test"),
+	}
+	privateKey, err := crypto.GeneratePrivateKey()
+	require.NoError(t, err)
+	tx := NewTransaction([]byte("hello"))
+	tx.InnerType = InnerTxTypeCollection
+	tx.InnerTx = collectionTx
+	err = tx.Sign(privateKey)
+	require.NoError(t, err)
+
+	var buf bytes.Buffer
+	err = tx.Encode(NewTxEncoder(&buf))
+	require.NoError(t, err)
+	var tx2 Transaction
+	err = tx2.Decode(NewTxDecoder(&buf))
+	require.NoError(t, err)
+	require.Equal(t, *tx, tx2)
+}
+
 func randomTxWithSignature() *Transaction {
 	privateKey, err := crypto.GeneratePrivateKey()
 	if err != nil {

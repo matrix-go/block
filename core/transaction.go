@@ -1,10 +1,31 @@
 package core
 
 import (
+	"encoding/gob"
 	"fmt"
 	"github.com/matrix-go/block/crypto"
 	"github.com/matrix-go/block/types"
 )
+
+type InnerTxType byte
+
+const (
+	InnerTxTypeCollection InnerTxType = iota
+	InnerTxTypeMint
+)
+
+type CollectionTx struct {
+	Fee      int64
+	Metadata []byte
+}
+
+type MintTx struct {
+	Fee             int64
+	Metadata        []byte
+	NFT             types.Hash
+	Collection      types.Hash
+	CollectionOwner crypto.PublicKey
+}
 
 type Transaction struct {
 	Data      []byte
@@ -15,6 +36,10 @@ type Transaction struct {
 	Timestamp int64
 	// cached Hash
 	Hash types.Hash
+
+	// inner tx
+	InnerType InnerTxType
+	InnerTx   any // one of MintTx and CollectionTx
 }
 
 func NewTransaction(data []byte) *Transaction {
@@ -63,4 +88,9 @@ func (tx *Transaction) FirstSeen() int64 {
 
 func (tx *Transaction) SetFirstSeen(t int64) {
 	tx.Timestamp = t
+}
+
+func init() {
+	gob.Register(&CollectionTx{})
+	gob.Register(&MintTx{})
 }
