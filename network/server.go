@@ -58,7 +58,12 @@ func NewServer(opt ServerOpt) (*Server, error) {
 		opt.Logger = log.With(opt.Logger, "ID", opt.ID, "addr", opt.Transport.Addr())
 	}
 
-	chain, err := core.NewBlockchain(genesisBlock(), opt.Logger)
+	// TODO: coinbase balance
+	accountState := core.NewAccountState()
+	if opt.PrivateKey != nil {
+		accountState.AddBalance(opt.PrivateKey.PublicKey().Address(), 100000000)
+	}
+	chain, err := core.NewBlockchain(genesisBlock(), accountState, opt.Logger)
 	if err != nil {
 		return nil, err
 	}

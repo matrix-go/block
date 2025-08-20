@@ -7,13 +7,6 @@ import (
 	"github.com/matrix-go/block/types"
 )
 
-type InnerTxType byte
-
-const (
-	InnerTxTypeCollection InnerTxType = iota
-	InnerTxTypeMint
-)
-
 type CollectionTx struct {
 	Fee      int64
 	Metadata []byte
@@ -29,7 +22,9 @@ type MintTx struct {
 
 type Transaction struct {
 	Data      []byte
-	From      crypto.PublicKey
+	From      *crypto.PublicKey
+	To        *crypto.PublicKey
+	Value     uint64 // TODO: big.Int
 	Signature *crypto.Signature
 
 	// first local node see the tx
@@ -38,8 +33,7 @@ type Transaction struct {
 	Hash types.Hash
 
 	// inner tx
-	InnerType InnerTxType
-	InnerTx   any // one of MintTx and CollectionTx
+	InnerTx any // one of MintTx and CollectionTx
 }
 
 func NewTransaction(data []byte) *Transaction {
@@ -51,7 +45,7 @@ func NewTransaction(data []byte) *Transaction {
 func (tx *Transaction) Sign(privateKey *crypto.PrivateKey) error {
 	sig := privateKey.Sign(tx.Data)
 
-	tx.From = *privateKey.PublicKey()
+	tx.From = privateKey.PublicKey()
 	tx.Signature = sig
 
 	return nil
@@ -61,7 +55,7 @@ func (tx *Transaction) Verify() error {
 	if tx.Signature == nil {
 		return fmt.Errorf("transaction has no signature")
 	}
-	if tx.Signature.Verify(&tx.From, tx.Data) {
+	if tx.Signature.Verify(tx.From, tx.Data) {
 		return nil
 	}
 	return fmt.Errorf("transaction signature verified failed")

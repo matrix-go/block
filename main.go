@@ -108,7 +108,7 @@ func initLocalTransportServers() []*network.Server {
 
 func initTcpTransportSevers() []*network.Server {
 	localTr := network.NewTcpTransport(":8080")
-	localPeer := network.NewTcpPeer(localTr.Addr())
+	//localPeer := network.NewTcpPeer(localTr.Addr())
 
 	// local validator node
 	privateKey, err := crypto.GeneratePrivateKey()
@@ -159,15 +159,25 @@ func initTcpTransportSevers() []*network.Server {
 	//}()
 
 	// late node to sync block
-	lateTr := network.NewTcpTransport(":8081")
-	lateServer := makeServer("LATE", nil, lateTr,
-		//[]network.Peer{remotePeer},
-		[]network.Peer{localPeer},
-		"",
-	)
-	time.Sleep(time.Second * 10)
-	go lateServer.Start()
-	time.Sleep(1 * time.Second)
+	//lateTr := network.NewTcpTransport(":8081")
+	//lateServer := makeServer("LATE", nil, lateTr,
+	//	//[]network.Peer{remotePeer},
+	//	[]network.Peer{localPeer},
+	//	"",
+	//)
+	//time.Sleep(time.Second * 10)
+	//go lateServer.Start()
+	//time.Sleep(1 * time.Second)
+
+	toKey, err := crypto.GeneratePrivateKey()
+	if err != nil {
+		panic(err)
+	}
+	var amount uint64 = 666
+	// send transaction with money
+	if err = sendTransactionWithMoneyThroughAPI(privateKey, toKey.PublicKey(), amount); err != nil {
+		logrus.Error(err)
+	}
 
 	return []*network.Server{localServer}
 }
@@ -221,7 +231,6 @@ func sendCollectionTxThroughAPI(privateKey *crypto.PrivateKey) (hash types.Hash,
 	}
 	tx := core.NewTransaction(nil)
 	tx.InnerTx = collectionTx
-	tx.InnerType = core.InnerTxTypeCollection
 
 	if err := tx.Sign(privateKey); err != nil {
 		return hash, fmt.Errorf("failed to sign tx: %s", err)
@@ -268,7 +277,6 @@ func sendMintTxThroughAPI(privateKey *crypto.PrivateKey, collection types.Hash) 
 	}
 	tx := core.NewTransaction(nil)
 	tx.InnerTx = mintTx
-	tx.InnerType = core.InnerTxTypeMint
 
 	if err := tx.Sign(privateKey); err != nil {
 		return fmt.Errorf("failed to sign tx: %s", err)
@@ -298,7 +306,7 @@ func sendTransactionThroughAPI() error {
 	//	Fee:      200,
 	//	Metadata: []byte("chicken and egg collection"), // collection name
 	//}
-	tx := core.NewTransaction(contract())
+	tx := core.NewTransaction(nil)
 	//tx.InnerTx = collectionTx
 	//tx.InnerType = core.InnerTxTypeCollection
 
@@ -307,6 +315,36 @@ func sendTransactionThroughAPI() error {
 		return fmt.Errorf("failed to generate private key: %s", err)
 	}
 	if err = tx.Sign(privateKey); err != nil {
+		return fmt.Errorf("failed to sign tx: %s", err)
+	}
+	var buf bytes.Buffer
+	if err := tx.Encode(core.NewTxEncoder(&buf)); err != nil {
+		return fmt.Errorf("failed to encode tx: %s", err)
+	}
+	req, err := http.NewRequest("POST", "http://localhost:9000/tx", &buf)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %s", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send tx: %s", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to send tx: %s", resp.Status)
+	}
+	return nil
+}
+
+func sendTransactionWithMoneyThroughAPI(from *crypto.PrivateKey, to *crypto.PublicKey, amount uint64) error {
+
+	tx := core.NewTransaction(nil)
+	tx.From = from.PublicKey()
+	tx.To = to
+	tx.Value = amount
+
+	if err := tx.Sign(from); err != nil {
 		return fmt.Errorf("failed to sign tx: %s", err)
 	}
 	var buf bytes.Buffer

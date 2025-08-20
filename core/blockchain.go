@@ -20,6 +20,7 @@ type Blockchain struct {
 
 	// TODO: make this an interface
 	contractState *State
+	accountState  *AccountState
 
 	lock     sync.RWMutex
 	txLock   sync.RWMutex
@@ -27,7 +28,7 @@ type Blockchain struct {
 	mintLock sync.RWMutex
 }
 
-func NewBlockchain(genesis *Block, logger log.Logger) (*Blockchain, error) {
+func NewBlockchain(genesis *Block, accountState *AccountState, logger log.Logger) (*Blockchain, error) {
 	bc := &Blockchain{
 		logger:           logger,
 		headers:          make([]*Header, 0),
@@ -38,6 +39,7 @@ func NewBlockchain(genesis *Block, logger log.Logger) (*Blockchain, error) {
 		collectionStore:  make(map[types.Hash]*CollectionTx),
 		mintStore:        make(map[types.Hash]*MintTx),
 		contractState:    NewState(),
+		accountState:     accountState,
 	}
 	err := bc.addBlock(genesis)
 	return bc, err
@@ -55,6 +57,8 @@ func (bc *Blockchain) AddBlock(block *Block) error {
 	}
 	// run vm code
 	for _, tx := range block.Transactions {
+
+		// handle contract with vm
 		if len(tx.Data) > 0 {
 			bc.logger.Log("msg", "executing code", "len", len(tx.Data), "Hash", tx.GetHash(NewTransactionHasher()))
 			vm := NewVM(tx.Data, bc.contractState)
@@ -65,36 +69,18 @@ func (bc *Blockchain) AddBlock(block *Block) error {
 			res := vm.stack.Shift()
 			fmt.Printf("vm result ======> %+v\n", res)
 		}
-		if tx.InnerTx != nil {
-			switch innerTx := tx.InnerTx.(type) {
-			case *CollectionTx:
-				fmt.Printf("tx.InnerTx ======> %+v\n", *innerTx)
-				hash := tx.GetHash(NewTransactionHasher())
-				bc.colLock.RLock()
-				_, exists := bc.collectionStore[hash]
-				bc.colLock.RUnlock()
-				if exists {
-					return fmt.Errorf("collection already exists")
-				}
-				bc.colLock.Lock()
-				bc.collectionStore[hash] = innerTx
-				bc.colLock.Unlock()
-			case *MintTx:
-				bc.colLock.RLock()
-				collection, exists := bc.collectionStore[innerTx.Collection]
-				bc.colLock.RUnlock()
-				if !exists {
-					return fmt.Errorf("collection does not exist")
-				}
-				_ = collection
-				hash := tx.GetHash(NewTransactionHasher())
-				bc.mintLock.Lock()
-				bc.mintStore[hash] = innerTx
-				bc.mintLock.Unlock()
 
-				fmt.Printf("tx.InnerTx mint collection ======> %+v\n", *innerTx)
-			default:
-				return fmt.Errorf("invalid transaction type: %v", tx.InnerType)
+		// handle inner transaction
+		if tx.InnerTx != nil {
+			if err := bc.handleNativeNFT(tx); err != nil {
+				return err
+			}
+		}
+
+		// handle native transaction
+		if tx.Value > 0 {
+			if err := bc.handleNativeTransaction(tx); err != nil {
+				return err
 			}
 		}
 	}
@@ -102,6 +88,44 @@ func (bc *Blockchain) AddBlock(block *Block) error {
 	// add block
 	if err := bc.addBlock(block); err != nil {
 		return err
+	}
+	return nil
+}
+
+func (bc *Blockchain) handleNativeTransaction(tx *Transaction) error {
+	fmt.Printf("======> %s is going to send %d coin to %s\n", tx.From, tx.Value, tx.To)
+	return bc.accountState.Transfer(tx.From.Address(), tx.To.Address(), tx.Value)
+}
+
+func (bc *Blockchain) handleNativeNFT(tx *Transaction) error {
+	switch innerTx := tx.InnerTx.(type) {
+	case *CollectionTx:
+		fmt.Printf("tx.InnerTx ======> %+v\n", *innerTx)
+		hash := tx.GetHash(NewTransactionHasher())
+		bc.colLock.RLock()
+		_, exists := bc.collectionStore[hash]
+		bc.colLock.RUnlock()
+		if exists {
+			return fmt.Errorf("collection already exists")
+		}
+		bc.colLock.Lock()
+		bc.collectionStore[hash] = innerTx
+		bc.colLock.Unlock()
+	case *MintTx:
+		bc.colLock.RLock()
+		collection, exists := bc.collectionStore[innerTx.Collection]
+		bc.colLock.RUnlock()
+		if !exists {
+			return fmt.Errorf("collection does not exist")
+		}
+		_ = collection
+		hash := tx.GetHash(NewTransactionHasher())
+		bc.mintLock.Lock()
+		bc.mintStore[hash] = innerTx
+		bc.mintLock.Unlock()
+		fmt.Printf("tx.InnerTx mint collection ======> %+v\n", *innerTx)
+	default:
+		return fmt.Errorf("invalid transaction type: %v", innerTx)
 	}
 	return nil
 }
@@ -174,4 +198,8 @@ func (bc *Blockchain) GetTransactionByHash(hash types.Hash) ([]*Transaction, err
 		return transactions, nil
 	}
 	return nil, fmt.Errorf("transaction not found")
+}
+
+func (bc *Blockchain) GetBalance(addr types.Address) (uint64, error) {
+	return bc.accountState.GetBalance(addr)
 }

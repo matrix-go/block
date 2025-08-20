@@ -52,6 +52,7 @@ func (s *Server) SetRouter() *gin.Engine {
 	eg.GET("/block/:hash", s.handleGetBlock)
 	eg.GET("/tx/:hash", s.handleGetTransaction)
 	eg.POST("/tx", s.handlePostTransaction)
+	eg.GET("/balance/:address", s.handleGetBalance)
 	eg.GET("/test", s.handleTest)
 	return eg
 }
@@ -158,5 +159,38 @@ func (s *Server) handlePostTransaction(ctx *gin.Context) {
 	s.txChan <- &tx
 	ctx.JSON(http.StatusOK, gin.H{
 		"msg": "success",
+	})
+}
+
+func (s *Server) handleGetBalance(ctx *gin.Context) {
+	addr := ctx.Param("address")
+	if addr == "" {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"msg": "param address is empty",
+		})
+		return
+	}
+
+	if strings.HasPrefix(addr, "0x") {
+		addr = addr[2:]
+	}
+	addrBytes, err := hex.DecodeString(addr)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"msg": "failed to decode address",
+		})
+		return
+	}
+	a := types.AddressFromBytes(addrBytes)
+	balance, err := s.chain.GetBalance(a)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"msg": "failed to get balance",
+		})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{
+		"msg":     "success",
+		"balance": balance,
 	})
 }

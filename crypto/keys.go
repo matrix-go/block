@@ -3,9 +3,11 @@ package crypto
 import (
 	"crypto/ed25519"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"github.com/matrix-go/block/types"
 	"io"
 	"strings"
 )
@@ -81,13 +83,12 @@ func (k PublicKey) Bytes() []byte {
 }
 
 func (k PublicKey) String() string {
-	return "0x" + hex.EncodeToString(k.Key)
+	return "0x" + k.Address().String()
 }
 
-func (k PublicKey) Address() Address {
-	return Address{
-		value: k.Key[len(k.Key)-kAddressLen:],
-	}
+func (k PublicKey) Address() types.Address {
+	h := sha256.Sum256(k.Key)
+	return types.AddressFromBytes(h[len(h)-20:])
 }
 
 func (k *PublicKey) MarshalJSON() ([]byte, error) {
@@ -146,14 +147,14 @@ func (s *Signature) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-type Address struct {
-	value []byte
-}
-
-func (a Address) String() string {
-	return hex.EncodeToString(a.value)
-}
-
-func (a Address) Bytes() []byte {
-	return a.value
-}
+//type Address struct {
+//	value []byte
+//}
+//
+//func (a Address) String() string {
+//	return hex.EncodeToString(a.value)
+//}
+//
+//func (a Address) Bytes() []byte {
+//	return a.value
+//}

@@ -25,3 +25,9 @@ Accept: application/json
 ###
 
 
+//  From:0xe6f2c1f7731a1b46d80cf1f7261238e4ee207701 To:0xd4d137c6e71aadeaef10a8e5b6012903f912dc39
+### get balance by address
+GET http://localhost:9000/balance/0xd4d137c6e71aadeaef10a8e5b6012903f912dc39
+Accept: application/json
+
+###
