@@ -415,7 +415,7 @@ func genesisBlock() *core.Block {
 
 	block := core.NewBlock(header)
 	block.AddTransaction(tx)
-	
+
 	privateKey, err := crypto.GeneratePrivateKey()
 	if err != nil {
 		panic(err)

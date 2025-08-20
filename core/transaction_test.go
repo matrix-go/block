@@ -60,7 +60,7 @@ func randomTxWithSignature() *Transaction {
 		panic(err)
 	}
 	tx := &Transaction{
-		Data: []byte("foo"),
+		Data: nil,
 	}
 	if err := tx.Sign(privateKey); err != nil {
 		panic(err)

@@ -10,6 +10,10 @@ import (
 
 type Hash [32]uint8
 
+func (h Hash) Bytes() []byte {
+	return h[:]
+}
+
 func (h *Hash) MarshalJSON() ([]byte, error) {
 	return json.Marshal("0x" + h.String())
 }

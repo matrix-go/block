@@ -2,7 +2,7 @@ package core
 
 import (
 	"encoding/gob"
-	"fmt"
+	"errors"
 	"github.com/matrix-go/block/crypto"
 	"github.com/matrix-go/block/types"
 )
@@ -43,7 +43,8 @@ func NewTransaction(data []byte) *Transaction {
 }
 
 func (tx *Transaction) Sign(privateKey *crypto.PrivateKey) error {
-	sig := privateKey.Sign(tx.Data)
+	hash := tx.GetHash(NewTransactionHasher())
+	sig := privateKey.Sign(hash.Bytes())
 
 	tx.From = privateKey.PublicKey()
 	tx.Signature = sig
@@ -53,19 +54,17 @@ func (tx *Transaction) Sign(privateKey *crypto.PrivateKey) error {
 
 func (tx *Transaction) Verify() error {
 	if tx.Signature == nil {
-		return fmt.Errorf("transaction has no signature")
+		return ErrTransactionNotSigned
 	}
-	if tx.Signature.Verify(tx.From, tx.Data) {
+	hash := tx.GetHash(NewTransactionHasher())
+	if tx.Signature.Verify(tx.From, hash.Bytes()) {
 		return nil
 	}
-	return fmt.Errorf("transaction signature verified failed")
+	return ErrTransactionVerifyFailed
 }
 
 func (tx *Transaction) GetHash(hasher Hasher[*Transaction]) types.Hash {
-	if tx.Hash.IsZero() {
-		tx.Hash = hasher.Hash(tx)
-	}
-	return tx.Hash
+	return hasher.Hash(tx)
 }
 
 func (tx *Transaction) Encode(enc Encoder[*Transaction]) error {
@@ -88,3 +87,8 @@ func init() {
 	gob.Register(&CollectionTx{})
 	gob.Register(&MintTx{})
 }
+
+var (
+	ErrTransactionVerifyFailed = errors.New("transaction verify failed")
+	ErrTransactionNotSigned    = errors.New("transaction not signed")
+)

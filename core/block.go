@@ -158,6 +158,6 @@ func CalculateDataHash(txs []*Transaction) (hash types.Hash, err error) {
 
 var (
 	ErrBlockVerifyFailed = errors.New("block valid failed")
-	ErrBlockInvalidHash  = errors.New("block has an invalid GetHash")
+	ErrBlockInvalidHash  = errors.New("block has an invalid hash")
 	ErrorBlockHasNoSig   = errors.New("block has no signature")
 )
