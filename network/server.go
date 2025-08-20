@@ -58,12 +58,7 @@ func NewServer(opt ServerOpt) (*Server, error) {
 		opt.Logger = log.With(opt.Logger, "ID", opt.ID, "addr", opt.Transport.Addr())
 	}
 
-	// TODO: coinbase balance
-	accountState := core.NewAccountState()
-	if opt.PrivateKey != nil {
-		accountState.AddBalance(opt.PrivateKey.PublicKey().Address(), 100000000)
-	}
-	chain, err := core.NewBlockchain(genesisBlock(), accountState, opt.Logger)
+	chain, err := core.NewBlockchain(genesisBlock(), opt.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -411,6 +406,22 @@ func genesisBlock() *core.Block {
 		Height:    0,
 		Timestamp: 0,
 	}
-	var txs []*core.Transaction
-	return core.NewBlock(header, txs)
+
+	coinbase := &crypto.PublicKey{}
+	tx := core.NewTransaction(nil)
+	tx.From = coinbase
+	tx.To = coinbase
+	tx.Value = 10_000_000 // TODO: coinbase reward
+
+	block := core.NewBlock(header)
+	block.AddTransaction(tx)
+	
+	privateKey, err := crypto.GeneratePrivateKey()
+	if err != nil {
+		panic(err)
+	}
+	if err = block.Sign(privateKey); err != nil {
+		panic(err)
+	}
+	return block
 }

@@ -72,10 +72,10 @@ type Block struct {
 	Hash types.Hash
 }
 
-func NewBlock(header *Header, txs []*Transaction) *Block {
+func NewBlock(header *Header) *Block {
 	return &Block{
 		Header:       header,
-		Transactions: txs,
+		Transactions: make([]*Transaction, 0),
 	}
 }
 
@@ -92,7 +92,9 @@ func NewBlockWithPrevHeader(prevHeader *Header, txs []*Transaction) (*Block, err
 		Height:    prevHeader.Height + 1,
 		Nonce:     prevHeader.Nonce,
 	}
-	return NewBlock(header, txs), nil
+	block := NewBlock(header)
+	block.Transactions = txs
+	return block, nil
 }
 
 func (b *Block) AddTransaction(tx *Transaction) {

@@ -1,6 +1,7 @@
 package crypto
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/sha256"
@@ -42,6 +43,20 @@ func NewPrivateKeyFromSeed(seed []byte) (*PrivateKey, error) {
 	// privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	return &PrivateKey{
 		key: ed25519.NewKeyFromSeed(seed),
+	}, nil
+}
+
+func NewPrivateKeyFromReader(r io.Reader) (*PrivateKey, error) {
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, r); err != nil {
+		return nil, err
+	}
+	key := buf.Bytes()
+	if len(key) != kPrivateKeyLen {
+		return nil, ErrInvalidSeedLength
+	}
+	return &PrivateKey{
+		key: key,
 	}, nil
 }
 

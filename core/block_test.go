@@ -18,8 +18,7 @@ func randomBlock(height uint64, prevHash types.Hash) *Block {
 		Height:    height,
 		Timestamp: uint64(time.Now().UnixNano()),
 	}
-	txs := []*Transaction{}
-	return NewBlock(header, txs)
+	return NewBlock(header)
 }
 
 func randomBlockWithSignature(height uint64, prevHash types.Hash) *Block {

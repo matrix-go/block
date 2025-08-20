@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"github.com/go-kit/log"
+	"github.com/matrix-go/block/crypto"
 	"github.com/matrix-go/block/types"
 	"sync"
 )
@@ -28,7 +29,16 @@ type Blockchain struct {
 	mintLock sync.RWMutex
 }
 
-func NewBlockchain(genesis *Block, accountState *AccountState, logger log.Logger) (*Blockchain, error) {
+func NewBlockchain(genesis *Block, logger log.Logger) (*Blockchain, error) {
+	// TODO: read state from disk db
+	accountState := NewAccountState()
+	contractState := NewState()
+
+	coinbase := crypto.PublicKey{}
+	if err := accountState.CreateAccount(coinbase.Address()); err != nil {
+		return nil, err
+	}
+
 	bc := &Blockchain{
 		logger:           logger,
 		headers:          make([]*Header, 0),
@@ -38,7 +48,7 @@ func NewBlockchain(genesis *Block, accountState *AccountState, logger log.Logger
 		transactionStore: make(map[types.Hash][]*Transaction),
 		collectionStore:  make(map[types.Hash]*CollectionTx),
 		mintStore:        make(map[types.Hash]*MintTx),
-		contractState:    NewState(),
+		contractState:    contractState,
 		accountState:     accountState,
 	}
 	err := bc.addBlock(genesis)
@@ -55,35 +65,6 @@ func (bc *Blockchain) AddBlock(block *Block) error {
 	if err := bc.validator.ValidateBlock(bc, block); err != nil {
 		return err
 	}
-	// run vm code
-	for _, tx := range block.Transactions {
-
-		// handle contract with vm
-		if len(tx.Data) > 0 {
-			bc.logger.Log("msg", "executing code", "len", len(tx.Data), "Hash", tx.GetHash(NewTransactionHasher()))
-			vm := NewVM(tx.Data, bc.contractState)
-			if err := vm.Run(); err != nil {
-				return err
-			}
-			fmt.Printf("vm state ======> %+v\n", vm.contractState)
-			res := vm.stack.Shift()
-			fmt.Printf("vm result ======> %+v\n", res)
-		}
-
-		// handle inner transaction
-		if tx.InnerTx != nil {
-			if err := bc.handleNativeNFT(tx); err != nil {
-				return err
-			}
-		}
-
-		// handle native transaction
-		if tx.Value > 0 {
-			if err := bc.handleNativeTransaction(tx); err != nil {
-				return err
-			}
-		}
-	}
 
 	// add block
 	if err := bc.addBlock(block); err != nil {
@@ -94,6 +75,9 @@ func (bc *Blockchain) AddBlock(block *Block) error {
 
 func (bc *Blockchain) handleNativeTransaction(tx *Transaction) error {
 	fmt.Printf("======> %s is going to send %d coin to %s\n", tx.From, tx.Value, tx.To)
+	if tx.From.String() == "0x996fb92427ae41e4649b934ca495991b7852b855" {
+		return bc.accountState.AddBalance(tx.To.Address(), tx.Value)
+	}
 	return bc.accountState.Transfer(tx.From.Address(), tx.To.Address(), tx.Value)
 }
 
@@ -133,6 +117,38 @@ func (bc *Blockchain) handleNativeNFT(tx *Transaction) error {
 // addBlock
 // addBlock without validation
 func (bc *Blockchain) addBlock(block *Block) error {
+
+	// run transaction code
+	for _, tx := range block.Transactions {
+		// handle contract with vm
+		if len(tx.Data) > 0 {
+			bc.logger.Log("msg", "executing code", "len", len(tx.Data), "Hash", tx.GetHash(NewTransactionHasher()))
+			vm := NewVM(tx.Data, bc.contractState)
+			if err := vm.Run(); err != nil {
+				return err
+			}
+			fmt.Printf("vm state ======> %+v\n", vm.contractState)
+			res := vm.stack.Shift()
+			fmt.Printf("vm result ======> %+v\n", res)
+		}
+
+		// handle inner transaction
+		if tx.InnerTx != nil {
+			if err := bc.handleNativeNFT(tx); err != nil {
+				return err
+			}
+		}
+		// handle native transaction
+		if tx.Value > 0 {
+			if err := bc.handleNativeTransaction(tx); err != nil {
+				return err
+			}
+			fmt.Printf("====== ACCOUNT STATE ====== \n")
+			fmt.Printf("%+v \n", bc.accountState.state)
+			fmt.Printf("====== ACCOUNT STATE ====== \n")
+		}
+	}
+
 	hash := NewHeaderHasher().Hash(block.Header)
 	bc.lock.Lock()
 	bc.headers = append(bc.headers, block.Header)

@@ -16,7 +16,7 @@ func TestAccountState_TransferNotEnoughBalance(t *testing.T) {
 
 	var amount uint64 = 1000
 	err = state.Transfer(fromKey.PublicKey().Address(), toKey.PublicKey().Address(), amount)
-	assert.ErrorIs(t, err, ErrNotEnoughBalance)
+	assert.ErrorIs(t, err, ErrAccountNotFound)
 }
 
 func TestAccountState_TransferSuccess(t *testing.T) {

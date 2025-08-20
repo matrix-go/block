@@ -13,8 +13,7 @@ import (
 func newBlockChainWithGenesisBlock(t *testing.T) (bc *Blockchain) {
 	b := randomBlockWithSignature(0, types.Hash{})
 	logger := log.NewLogfmtLogger(os.Stderr)
-	state := NewAccountState()
-	bc, err := NewBlockchain(b, state, logger)
+	bc, err := NewBlockchain(b, logger)
 	require.NoError(t, err)
 	return bc
 }
