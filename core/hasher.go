@@ -47,9 +47,12 @@ func NewTransactionHasher() *TransactionHasher {
 func (h *TransactionHasher) Hash(tx *Transaction) types.Hash {
 	var buf bytes.Buffer
 	sig := tx.Signature
+	timestamp := tx.Timestamp
 	tx.Signature = nil
+	tx.Timestamp = 0
 	defer func() {
 		tx.Signature = sig
+		tx.Timestamp = timestamp
 	}()
 	if err := tx.Encode(NewTxEncoder(&buf)); err != nil {
 		panic(err)

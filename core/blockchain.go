@@ -29,7 +29,7 @@ type Blockchain struct {
 	mintLock sync.RWMutex
 }
 
-func NewBlockchain(genesis *Block, logger log.Logger) (*Blockchain, error) {
+func NewBlockchain(genesis *Block, logger log.Logger) (bc *Blockchain, err error) {
 	// TODO: read state from disk db
 	accountState := NewAccountState()
 	contractState := NewState()
@@ -39,7 +39,7 @@ func NewBlockchain(genesis *Block, logger log.Logger) (*Blockchain, error) {
 		return nil, err
 	}
 
-	bc := &Blockchain{
+	bc = &Blockchain{
 		logger:           logger,
 		headers:          make([]*Header, 0),
 		storage:          NewMemStorage(),
@@ -51,7 +51,19 @@ func NewBlockchain(genesis *Block, logger log.Logger) (*Blockchain, error) {
 		contractState:    contractState,
 		accountState:     accountState,
 	}
-	err := bc.addBlock(genesis)
+
+	if genesis != nil {
+		err = bc.addBlock(genesis)
+		if err == nil && genesis.Validator != nil {
+			coinbaseAccount, err := bc.accountState.GetAccount(coinbase.Address())
+			if err != nil {
+				return nil, err
+			}
+			if err = bc.accountState.Transfer(coinbaseAccount.Address, genesis.Validator.Address(), coinbaseAccount.Balance); err != nil {
+				return nil, err
+			}
+		}
+	}
 	return bc, err
 }
 

@@ -43,10 +43,9 @@ func NewTransaction(data []byte) *Transaction {
 }
 
 func (tx *Transaction) Sign(privateKey *crypto.PrivateKey) error {
+	tx.From = privateKey.PublicKey()
 	hash := tx.GetHash(NewTransactionHasher())
 	sig := privateKey.Sign(hash.Bytes())
-
-	tx.From = privateKey.PublicKey()
 	tx.Signature = sig
 
 	return nil

@@ -111,12 +111,12 @@ func initTcpTransportSevers() []*network.Server {
 	//localPeer := network.NewTcpPeer(localTr.Addr())
 
 	// local validator node
-	privateKey, err := crypto.GeneratePrivateKey()
+	validator, err := crypto.GeneratePrivateKey()
 	if err != nil {
 		panic(err)
 	}
 	localApiAddr := ":9000"
-	localServer := makeServer("LOCAL", privateKey, localTr, nil, localApiAddr)
+	localServer := makeServer("LOCAL", validator, localTr, nil, localApiAddr)
 	go localServer.Start()
 	time.Sleep(1 * time.Second)
 
@@ -175,7 +175,7 @@ func initTcpTransportSevers() []*network.Server {
 	}
 	var amount uint64 = 666
 	// send transaction with money
-	if err = sendTransactionWithMoneyThroughAPI(privateKey, toKey.PublicKey(), amount); err != nil {
+	if err = sendTransactionWithMoneyThroughAPI(validator, toKey.PublicKey(), amount); err != nil {
 		logrus.Error(err)
 	}
 

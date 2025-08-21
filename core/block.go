@@ -65,7 +65,7 @@ type Block struct {
 	Transactions []*Transaction
 
 	// validator that mine the block
-	Validator crypto.PublicKey
+	Validator *crypto.PublicKey
 	Signature *crypto.Signature
 
 	// cached Hash of block
@@ -103,7 +103,7 @@ func (b *Block) AddTransaction(tx *Transaction) {
 
 func (b *Block) Sign(privateKey *crypto.PrivateKey) error {
 	b.Signature = privateKey.Sign(b.Header.Bytes())
-	b.Validator = *privateKey.PublicKey()
+	b.Validator = privateKey.PublicKey()
 	return nil
 }
 
@@ -111,7 +111,7 @@ func (b *Block) Verify() error {
 	if b.Signature == nil {
 		return ErrorBlockHasNoSig
 	}
-	if !b.Signature.Verify(&b.Validator, b.Header.Bytes()) {
+	if !b.Signature.Verify(b.Validator, b.Header.Bytes()) {
 		return ErrBlockVerifyFailed
 	}
 	for _, tx := range b.Transactions {

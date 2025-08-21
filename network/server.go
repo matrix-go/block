@@ -58,7 +58,12 @@ func NewServer(opt ServerOpt) (*Server, error) {
 		opt.Logger = log.With(opt.Logger, "ID", opt.ID, "addr", opt.Transport.Addr())
 	}
 
-	chain, err := core.NewBlockchain(genesisBlock(), opt.Logger)
+	var genesis *core.Block
+	if opt.PrivateKey != nil {
+		genesis = genesisBlock(opt.PrivateKey)
+	}
+
+	chain, err := core.NewBlockchain(genesis, opt.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -400,7 +405,7 @@ func (s *Server) Stop() {
 	//s.Transport.Stop()
 }
 
-func genesisBlock() *core.Block {
+func genesisBlock(validator *crypto.PrivateKey) *core.Block {
 	header := &core.Header{
 		Version:   1,
 		Height:    0,
@@ -416,11 +421,7 @@ func genesisBlock() *core.Block {
 	block := core.NewBlock(header)
 	block.AddTransaction(tx)
 
-	privateKey, err := crypto.GeneratePrivateKey()
-	if err != nil {
-		panic(err)
-	}
-	if err = block.Sign(privateKey); err != nil {
+	if err := block.Sign(validator); err != nil {
 		panic(err)
 	}
 	return block
